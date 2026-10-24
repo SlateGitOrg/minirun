@@ -111,6 +111,12 @@ Design points:
   child into the cgroup only after setup, just before releasing it to
   `execve`; cgroup migration is never refused by the pids controller, and
   after `execve` only the container program remains.
+- **Cgroup namespaces are created late.** A cgroup namespace is rooted at
+  the cgroup its creator is in. Because of the late join, `CLONE_NEWCGROUP`
+  is never passed to `clone`; when the config asks for one, init sends
+  `join-cgroup`, the parent moves it into the container cgroup and answers
+  on the start pipe, and init calls `unshare(CLONE_NEWCGROUP)` before
+  mounting anything.
 
 ### exec
 
