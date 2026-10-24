@@ -1,0 +1,28 @@
+0000: ld   [4]                       ; arch
+0001: jeq  #0xc000003e, 0002, 0025   ; SCMP_ARCH_X86_64
+0002: ld   [0]                       ; nr
+0003: jset #0x40000000, 0004, 0005
+0004: jeq  #0xffffffff, 0005, 0025
+0005: jge  #0x29, 0009, 0006         ; nr >= socket
+0006: jge  #0x10, 0008, 0007         ; nr >= ioctl
+0007: jge  #0x2, 0027, 0026          ; nr >= open
+0008: jge  #0x11, 0027, 0012         ; nr >= pread64
+0009: jge  #0xe7, 0011, 0010         ; nr >= exit_group
+0010: jge  #0x2a, 0027, 0019         ; nr >= connect
+0011: jge  #0xe8, 0027, 0026         ; nr >= epoll_wait
+0012: ld   [28]                      ; args[1] (hi)
+0013: and  #0x0
+0014: jeq  #0x0, 0015, 0018
+0015: ld   [24]                      ; args[1] (lo)
+0016: and  #0xff00
+0017: jeq  #0x5400, 0026, 0018
+0018: ja   0027
+0019: ld   [20]                      ; args[0] (hi)
+0020: jgt  #0x0, 0024, 0021
+0021: jeq  #0x0, 0022, 0026
+0022: ld   [16]                      ; args[0] (lo)
+0023: jgt  #0xa, 0024, 0026
+0024: ja   0027
+0025: ret  #0x80000000               ; SCMP_ACT_KILL_PROCESS
+0026: ret  #0x7fff0000               ; SCMP_ACT_ALLOW
+0027: ret  #0x00050001               ; SCMP_ACT_ERRNO(1)
