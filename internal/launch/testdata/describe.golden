@@ -1,0 +1,45 @@
+container demo (bundle /bundles/demo)
+
+[1] namespaces  clone flags 0x7c020000: ipc, mount, network, pid, user, uts
+    uid_map  0 100000 65536
+    gid_map  0 100000 65536  (setgroups denied)
+
+[2] cgroup /sys/fs/cgroup/minirun/demo
+    delegate +cpu +memory +pids along the path
+    write cpu.max          = 50000 100000
+    write memory.max       = 33554432
+    write memory.swap.max  = 0
+    write pids.max         = 16
+
+[3] root filesystem
+    mount propagation of / -> MS_REC|MS_PRIVATE
+    mount overlay on /run/minirun/demo/rootfs
+      lowerdir=/bundles/demo/rootfs,upperdir=/run/minirun/demo/upper,workdir=/run/minirun/demo/work
+    mount proc         on /proc        type proc    MS_NOSUID|MS_NODEV|MS_NOEXEC
+    mount tmpfs        on /dev         type tmpfs   MS_NOSUID|MS_STRICTATIME [mode=755,size=65536k]
+    mount devpts       on /dev/pts     type devpts  MS_NOSUID|MS_NOEXEC [newinstance,ptmxmode=0666,mode=0620]
+    mount shm          on /dev/shm     type tmpfs   MS_NOSUID|MS_NODEV|MS_NOEXEC [mode=1777,size=65536k]
+    mount mqueue       on /dev/mqueue  type mqueue  MS_NOSUID|MS_NODEV|MS_NOEXEC
+    mount sysfs        on /sys         type sysfs   MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC
+    mount /srv/data    on /data        type bind    MS_BIND|MS_REC
+      remount MS_RDONLY|MS_REMOUNT|MS_BIND
+    bind devices /dev/null /dev/zero /dev/full /dev/random /dev/urandom /dev/tty
+    pivot_root into /run/minirun/demo/rootfs, detach old root
+    mask /proc/acpi /proc/asound /proc/kcore /proc/keys /proc/latency_stats /proc/timer_list /proc/timer_stats /proc/sched_debug /proc/scsi /sys/firmware
+    read-only /proc/bus /proc/fs /proc/irq /proc/sys /proc/sysrq-trigger
+    remount / read-only
+
+[4] identity
+    hostname demo
+    bring up lo in the new network namespace
+    setrlimit RLIMIT_NOFILE soft=1024 hard=1024
+
+[5] privileges  uid=0 gid=0 no_new_privs=true
+    bounding    00000000a80425fb  (14 caps)
+    effective   00000000a80425fb
+    permitted   00000000a80425fb
+    inheritable 0000000000000000
+    ambient     0000000000000000
+    seccomp SCMP_ARCH_X86_64: 302 rules -> 105 BPF instructions over 64 syscall ranges, default SCMP_ACT_ERRNO(1)
+
+[6] exec /bin/sh -c echo hello (cwd /)
