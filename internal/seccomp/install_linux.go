@@ -34,7 +34,7 @@ func Install(p *Program) error {
 		filter[i] = unix.SockFilter{Code: ins.Op, Jt: ins.Jt, Jf: ins.Jf, K: ins.K}
 	}
 	prog := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
-	_, _, errno := unix.RawSyscall(unix.SYS_SECCOMP, seccompSetModeFilter, uintptr(p.Flags), uintptr(unsafe.Pointer(&prog)))
+	_, _, errno := unix.RawSyscall(unix.SYS_SECCOMP, seccompSetModeFilter, uintptr(p.Flags), uintptr(unsafe.Pointer(&prog))) //nolint:gosec // G103: seccomp(2) takes a sock_fprog pointer; kept alive below
 	runtime.KeepAlive(filter)
 	if errno != 0 {
 		return fmt.Errorf("seccomp: load filter: %w", errno)

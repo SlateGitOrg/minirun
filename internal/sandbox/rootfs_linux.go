@@ -38,7 +38,7 @@ func lockedFlags(path string) (uint64, error) {
 		unix.ST_NOEXEC: mounts.MSNoexec, unix.ST_NOATIME: mounts.MSNoatime,
 		unix.ST_NODIRATIME: mounts.MSNodiratime, unix.ST_RELATIME: mounts.MSRelatime,
 	} {
-		if int64(st.Flags)&bit != 0 {
+		if st.Flags&bit != 0 {
 			f |= ms
 		}
 	}

@@ -129,7 +129,7 @@ func (a *App) Run(ctx context.Context, args []string) int {
 	}
 	log, err := newLogger(a.Stderr, g.LogLevel, g.LogFormat)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "minirun: %v\n", err)
+		a.errorf("minirun: %v\n", err)
 		return 2
 	}
 	for _, c := range commands {
@@ -139,7 +139,7 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		err := c.run(a, ctx, g, log, rest[1:])
 		return a.report(c.name, err)
 	}
-	fmt.Fprintf(a.Stderr, "minirun: unknown command %q\n", rest[0])
+	a.errorf("minirun: unknown command %q\n", rest[0])
 	a.usage(fs)
 	return 2
 }
@@ -155,16 +155,22 @@ func (a *App) report(name string, err error) int {
 	case errors.Is(err, flag.ErrHelp):
 		return 0
 	case errors.As(err, &ue):
-		fmt.Fprintf(a.Stderr, "minirun %s: %v\n", name, err)
+		a.errorf("minirun %s: %v\n", name, err)
 		return 2
 	default:
-		fmt.Fprintf(a.Stderr, "minirun %s: %v\n", name, err)
+		a.errorf("minirun %s: %v\n", name, err)
 		return 1
 	}
 }
 
+// errorf writes a diagnostic to stderr. A failure to write a diagnostic has
+// nowhere to be reported, so it is ignored.
+func (a *App) errorf(format string, args ...any) {
+	_, _ = fmt.Fprintf(a.Stderr, format, args...)
+}
+
 func (a *App) usage(fs *flag.FlagSet) {
-	fmt.Fprintf(a.Stderr, "usage: minirun [global flags] <command> [flags] [args]\n\ncommands:\n")
+	a.errorf("usage: minirun [global flags] <command> [flags] [args]\n\ncommands:\n")
 	names := make([]string, 0, len(commands))
 	byName := map[string]string{}
 	for _, c := range commands {
@@ -173,9 +179,9 @@ func (a *App) usage(fs *flag.FlagSet) {
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		fmt.Fprintf(a.Stderr, "  %-9s %s\n", n, byName[n])
+		a.errorf("  %-9s %s\n", n, byName[n])
 	}
-	fmt.Fprintf(a.Stderr, "\nglobal flags:\n")
+	a.errorf("\nglobal flags:\n")
 	fs.PrintDefaults()
 }
 
@@ -201,7 +207,7 @@ func (a *App) newFlags(name, args string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
 	fs.Usage = func() {
-		fmt.Fprintf(a.Stderr, "usage: minirun %s %s\n", name, args)
+		a.errorf("usage: minirun %s %s\n", name, args)
 		fs.PrintDefaults()
 	}
 	return fs

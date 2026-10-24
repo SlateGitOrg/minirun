@@ -152,7 +152,8 @@ func denySyscall(p *spec.Seccomp, expr string) error {
 		}
 	}
 	e := uint(errno)
-	p.Syscalls = append(kept, spec.Syscall{Names: []string{name}, Action: "SCMP_ACT_ERRNO", ErrnoRet: &e})
+	kept = append(kept, spec.Syscall{Names: []string{name}, Action: "SCMP_ACT_ERRNO", ErrnoRet: &e})
+	p.Syscalls = kept
 	return nil
 }
 
@@ -266,6 +267,7 @@ func cmdSeccomp(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []str
 	bundle := fs.String("bundle", ".", "bundle directory")
 	useDefault := fs.Bool("default", false, "use minirun's default profile instead of a bundle")
 	disasm := fs.Bool("disasm", false, "print the BPF program")
+	cost := fs.Bool("cost", false, "measure instructions executed per syscall (vs a linear jeq chain)")
 	raw := fs.String("o", "", "write the raw sock_filter array to this file")
 	archName := archFlag(fs)
 	var checks multiFlag
@@ -310,6 +312,16 @@ func cmdSeccomp(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []str
 	}
 	if *disasm {
 		if err := seccomp.Disassemble(a.Stdout, prog); err != nil {
+			return err
+		}
+	}
+	if *cost {
+		c, err := seccomp.MeasureCost(prof, prog)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(a.Stdout, "cost over %d syscalls: range tree avg %.1f / max %d instructions; linear jeq chain avg %.1f / max %d\n",
+			c.Calls, c.Avg, c.Max, c.LinearAvg, c.LinearMax); err != nil {
 			return err
 		}
 	}

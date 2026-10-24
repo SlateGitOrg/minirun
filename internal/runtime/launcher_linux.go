@@ -38,6 +38,16 @@ func (l *LinuxLauncher) self() string {
 // NewLauncher returns the platform launcher.
 func NewLauncher() Launcher { return &LinuxLauncher{} }
 
+// Check implements Launcher. minirun creates namespaces, mounts and cgroups
+// directly and so needs root; other prerequisites (cgroup v2, overlayfs)
+// fail later with explanatory errors.
+func (l *LinuxLauncher) Check() error {
+	if os.Geteuid() != 0 {
+		return errors.New("minirun must run as root (rootless mode is not implemented)")
+	}
+	return nil
+}
+
 type pipes struct {
 	planR, planW     *os.File
 	startR, startW   *os.File

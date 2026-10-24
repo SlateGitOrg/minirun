@@ -43,6 +43,9 @@ type Child interface {
 
 // Launcher starts container processes.
 type Launcher interface {
+	// Check reports whether this launcher can start containers here, so a
+	// run can fail before it touches state or cgroups.
+	Check() error
 	// StartInit creates the container's init process in new namespaces.
 	StartInit(ctx context.Context, plan *launch.Plan, stdio Stdio) (Child, error)
 	// StartExec starts an additional process inside the running container
@@ -130,12 +133,17 @@ func (r *Runtime) Run(ctx context.Context, o RunOptions) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+	if err := r.Launcher.Check(); err != nil {
+		return -1, err
+	}
 	if err := r.Store.Create(o.ID); err != nil {
 		return -1, err
 	}
 	child, err := r.create(ctx, plan, o)
 	if err != nil {
-		r.cleanupFailed(plan)
+		if rmErr := r.Store.Remove(plan.ID); rmErr != nil {
+			r.logger().Warn("cleanup: remove state", "id", plan.ID, "err", rmErr)
+		}
 		return -1, err
 	}
 	if o.Detach {
@@ -145,8 +153,9 @@ func (r *Runtime) Run(ctx context.Context, o RunOptions) (int, error) {
 }
 
 // create performs everything up to a running process, holding the
-// container lock.
-func (r *Runtime) create(ctx context.Context, plan *launch.Plan, o RunOptions) (Child, error) {
+// container lock. If it fails after creating the cgroup it removes it again;
+// a cgroup that already existed (another container's) is never touched.
+func (r *Runtime) create(ctx context.Context, plan *launch.Plan, o RunOptions) (child Child, err error) {
 	log := r.logger().With("id", plan.ID)
 	unlock, err := r.Store.Lock(plan.ID)
 	if err != nil {
@@ -180,6 +189,13 @@ func (r *Runtime) create(ctx context.Context, plan *launch.Plan, o RunOptions) (
 	if err := cg.Create(plan.Cgroup.Controllers); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			if derr := cg.Destroy(); derr != nil {
+				log.Warn("cleanup: remove cgroup", "err", derr)
+			}
+		}
+	}()
 	if err := cg.Apply(plan.Cgroup.Settings); err != nil {
 		return nil, err
 	}
@@ -194,7 +210,7 @@ func (r *Runtime) create(ctx context.Context, plan *launch.Plan, o RunOptions) (
 		defer func() { _ = console.Close() }()
 		stdio = Stdio{Out: console, Err: console}
 	}
-	child, err := r.Launcher.StartInit(ctx, plan, stdio)
+	child, err = r.Launcher.StartInit(ctx, plan, stdio)
 	if err != nil {
 		return nil, err
 	}
@@ -254,19 +270,6 @@ func (r *Runtime) prepareDirs(plan *launch.Plan) error {
 		}
 	}
 	return nil
-}
-
-// cleanupFailed undoes a failed create.
-func (r *Runtime) cleanupFailed(plan *launch.Plan) {
-	log := r.logger().With("id", plan.ID)
-	if cg, err := r.cgroup(plan.Cgroup.Path); err == nil && cg.Exists() {
-		if err := cg.Destroy(); err != nil {
-			log.Warn("cleanup: remove cgroup", "err", err)
-		}
-	}
-	if err := r.Store.Remove(plan.ID); err != nil {
-		log.Warn("cleanup: remove state", "err", err)
-	}
 }
 
 func (r *Runtime) waitForeground(o RunOptions, plan *launch.Plan, child Child) (int, error) {

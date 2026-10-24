@@ -93,12 +93,10 @@ func RunInit() error {
 	if err := readPlan(c.plan, &p); err != nil {
 		return c.fail(err)
 	}
-	if err := initContainer(&p, c); err != nil {
-		return c.fail(err)
-	}
-	return nil
+	return c.fail(initContainer(&p, c))
 }
 
+// initContainer only returns on failure: on success it execs.
 func initContainer(p *launch.Plan, c *child) error {
 	lastCap, err := caps.KernelLast()
 	if err != nil {
@@ -142,12 +140,10 @@ func RunExec() error {
 	if err := readPlan(c.plan, &p); err != nil {
 		return c.fail(err)
 	}
-	if err := enterContainer(&p, c); err != nil {
-		return c.fail(err)
-	}
-	return nil
+	return c.fail(enterContainer(&p, c))
 }
 
+// enterContainer only returns on failure: on success it execs.
 func enterContainer(p *ExecPlan, c *child) error {
 	lastCap, err := caps.KernelLast()
 	if err != nil {

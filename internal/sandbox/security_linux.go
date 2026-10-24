@@ -23,7 +23,7 @@ import (
 func setgroups(gids []uint32) error {
 	var p unsafe.Pointer
 	if len(gids) > 0 {
-		p = unsafe.Pointer(&gids[0])
+		p = unsafe.Pointer(&gids[0]) //nolint:gosec // G103: setgroups(2) takes a gid_t array; gids outlives the call
 	}
 	if _, _, errno := unix.RawSyscall(unix.SYS_SETGROUPS, uintptr(len(gids)), uintptr(p), 0); errno != 0 {
 		return fmt.Errorf("setgroups: %w", errno)

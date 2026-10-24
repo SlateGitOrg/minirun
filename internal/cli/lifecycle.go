@@ -174,8 +174,9 @@ func cmdPs(a *App, _ context.Context, g Globals, log *slog.Logger, args []string
 	if *asJSON {
 		return writeJSON(a, list)
 	}
+	// tabwriter buffers everything; write errors surface from Flush.
 	tw := tabwriter.NewWriter(a.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "ID\tPID\tSTATUS\tEXIT\tCREATED\tBUNDLE")
+	_, _ = fmt.Fprintln(tw, "ID\tPID\tSTATUS\tEXIT\tCREATED\tBUNDLE")
 	for _, st := range list {
 		exit := "-"
 		if st.ExitCode != nil {
@@ -184,7 +185,7 @@ func cmdPs(a *App, _ context.Context, g Globals, log *slog.Logger, args []string
 				exit += " (oom)"
 			}
 		}
-		fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\t%s\n", st.ID, st.Pid, st.Status, exit, st.Created.Format(time.RFC3339), st.Bundle)
+		_, _ = fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\t%s\n", st.ID, st.Pid, st.Status, exit, st.Created.Format(time.RFC3339), st.Bundle)
 	}
 	return tw.Flush()
 }

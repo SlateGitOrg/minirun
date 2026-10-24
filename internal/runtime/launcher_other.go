@@ -15,6 +15,8 @@ type unsupportedLauncher struct{}
 // start containers.
 func NewLauncher() Launcher { return unsupportedLauncher{} }
 
+func (unsupportedLauncher) Check() error { return ErrUnsupported }
+
 func (unsupportedLauncher) StartInit(context.Context, *launch.Plan, Stdio) (Child, error) {
 	return nil, ErrUnsupported
 }

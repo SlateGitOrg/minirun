@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,7 +27,7 @@ func (s *Store) Lock(id string) (func(), error) {
 	}
 	for {
 		err = unix.Flock(int(f.Fd()), unix.LOCK_EX)
-		if err != unix.EINTR {
+		if !errors.Is(err, unix.EINTR) {
 			break
 		}
 	}

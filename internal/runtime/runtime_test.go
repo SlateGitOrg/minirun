@@ -79,6 +79,8 @@ func (c *fakeChild) gone() {
 	_ = c.l.cg.SetCounter(procs, strings.Join(keep, ""))
 }
 
+func (l *fakeLauncher) Check() error { return nil }
+
 func (l *fakeLauncher) spawn() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -401,6 +403,21 @@ func TestRunRejectsBadInput(t *testing.T) {
 	}
 	if _, err := os.Stat(h.rt.Store.Dir("rdma")); !os.IsNotExist(err) {
 		t.Errorf("state left behind: %v", err)
+	}
+	// A cgroup that already exists belongs to someone else: the run fails
+	// and must leave it alone.
+	if err := h.cg.Mkdir(filepath.Join(h.cg.Root, "minirun")); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(h.cg.Root, "minirun", "taken")
+	if err := h.cg.Mkdir(other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.rt.Run(context.Background(), runtime.RunOptions{ID: "taken", Bundle: h.bundle}); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("existing cgroup: %v", err)
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Errorf("pre-existing cgroup was removed: %v", err)
 	}
 }
 

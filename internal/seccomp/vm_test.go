@@ -258,12 +258,11 @@ func TestArchLookup(t *testing.T) {
 }
 
 func TestInstallOnUnsupportedPlatform(t *testing.T) {
-	prog := mustCompile(t, mustProfile(t, &spec.Seccomp{DefaultAction: "SCMP_ACT_ALLOW"}), ArchX86_64)
 	foreign := ArchAArch64
 	if native, err := NativeArch(); err == nil && native == ArchAArch64 {
 		foreign = ArchX86_64
-		prog = mustCompile(t, mustProfile(t, &spec.Seccomp{DefaultAction: "SCMP_ACT_ALLOW"}), foreign)
 	}
+	prog := mustCompile(t, mustProfile(t, &spec.Seccomp{DefaultAction: "SCMP_ACT_ALLOW"}), foreign)
 	// Either the platform cannot load filters at all, or the architecture
 	// mismatch is rejected before anything reaches the kernel.
 	if err := Install(prog); err == nil {

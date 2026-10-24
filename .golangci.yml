@@ -1,0 +1,52 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nolintlint
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    gosec:
+      excludes:
+        # Integer-conversion warnings fire on every uint32<->uintptr move a
+        # syscall wrapper makes; the conversions here are range-checked by
+        # construction (syscall numbers, capability bits, BPF offsets).
+        - G115
+        # minirun is a runtime: it opens paths named by configs and runs
+        # binaries by design. Path handling is reviewed in SecureJoin.
+        - G204
+        - G304
+        - G301
+        - G302
+        - G306
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: unused-parameter
+          disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - unparam
+
+formatters:
+  enable:
+    - gofmt

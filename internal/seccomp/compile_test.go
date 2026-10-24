@@ -395,3 +395,25 @@ func FuzzCompileMatchesEvaluate(f *testing.F) {
 		}
 	})
 }
+
+func TestMeasureCost(t *testing.T) {
+	p := mustProfile(t, DefaultProfile())
+	for _, a := range []*Arch{ArchX86_64, ArchAArch64} {
+		prog := mustCompile(t, p, a)
+		c, err := MeasureCost(p, prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Calls != len(a.SyscallNames()) || c.Avg <= 0 || c.Max < int(c.Avg) {
+			t.Errorf("%s: cost = %+v", a.Name, c)
+		}
+		// The range tree must beat the naive chain on average.
+		if c.Avg >= c.LinearAvg {
+			t.Errorf("%s: tree avg %.1f not below linear %.1f", a.Name, c.Avg, c.LinearAvg)
+		}
+	}
+	bad := &Program{Arch: ArchX86_64, Instructions: []Instruction{{Op: bpfLD | bpfIMM}}}
+	if _, err := MeasureCost(p, bad); err == nil {
+		t.Error("broken program accepted")
+	}
+}

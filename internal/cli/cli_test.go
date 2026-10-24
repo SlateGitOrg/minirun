@@ -33,9 +33,9 @@ type stubChild struct {
 	procs string // the cgroup.procs file of the container
 }
 
-func (c *stubChild) Pid() int           { return c.pid }
-func (c *stubChild) Start() error       { return nil }
-func (c *stubChild) Abort()             {}
+func (c *stubChild) Pid() int     { return c.pid }
+func (c *stubChild) Start() error { return nil }
+func (c *stubChild) Abort()       {}
 func (c *stubChild) Wait() (int, error) {
 	// Like the kernel, drop the reaped process from its cgroup.
 	data, _ := os.ReadFile(c.procs)
@@ -56,6 +56,8 @@ func (s *stubLauncher) spawn() int {
 	_ = os.WriteFile(filepath.Join(dir, "stat"), []byte(strconv.Itoa(s.pid)+" (x) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 77 0 0"), 0o644)
 	return s.pid
 }
+
+func (s *stubLauncher) Check() error { return nil }
 
 func (s *stubLauncher) child(plan *launch.Plan) *stubChild {
 	return &stubChild{s: s, pid: s.spawn(), procs: filepath.Join(s.cgroup, plan.Cgroup.Path, "cgroup.procs")}
@@ -202,11 +204,11 @@ func TestDenySyscall(t *testing.T) {
 func TestSeccompCommand(t *testing.T) {
 	e := newEnv(t)
 	raw := filepath.Join(e.dir, "filter.bpf")
-	if code := e.run("seccomp", "--default", "--arch", "x86_64", "--disasm", "-o", raw, "--check", "clone:0x10000011", "--check", "socket:40", "--check", "personality:0"); code != 0 {
+	if code := e.run("seccomp", "--default", "--arch", "x86_64", "--disasm", "--cost", "-o", raw, "--check", "clone:0x10000011", "--check", "socket:40", "--check", "personality:0"); code != 0 {
 		t.Fatalf("seccomp: %s", e.err)
 	}
 	out := e.out.String()
-	for _, want := range []string{"SCMP_ARCH_X86_64:", "0000: ld   [4]", "clone:0x10000011", "SCMP_ACT_ERRNO(1)"} {
+	for _, want := range []string{"SCMP_ARCH_X86_64:", "0000: ld   [4]", "clone:0x10000011", "SCMP_ACT_ERRNO(1)", "cost over 385 syscalls"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q", want)
 		}

@@ -126,17 +126,25 @@ var ErrNoReturn = errors.New("bpf: fell off the end of the program")
 // every instruction the kernel's seccomp_check_filter admits; programs that
 // would be rejected at load time should be checked with Validate first.
 func Run(insns []Instruction, d Data) (uint32, error) {
+	v, _, err := RunCount(insns, d)
+	return v, err
+}
+
+// RunCount is Run that also reports how many instructions were executed,
+// the cost the kernel pays for the call.
+func RunCount(insns []Instruction, d Data) (verdict uint32, steps int, err error) {
 	data := d.encode()
 	var a, x uint32
 	var mem [bpfMemWords]uint32
 	for pc := 0; pc < len(insns); pc++ {
+		steps++
 		ins := insns[pc]
 		switch ins.Op & 0x07 {
 		case bpfLD:
 			switch ins.Op {
 			case bpfLD | bpfW | bpfABS:
 				if ins.K%4 != 0 || ins.K+4 > seccompLen {
-					return 0, fmt.Errorf("bpf: pc %d: load at invalid offset %d", pc, ins.K)
+					return 0, steps, fmt.Errorf("bpf: pc %d: load at invalid offset %d", pc, ins.K)
 				}
 				a = binary.LittleEndian.Uint32(data[ins.K:])
 			case bpfLD | bpfW | bpfLEN:
@@ -145,11 +153,11 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 				a = ins.K
 			case bpfLD | bpfMEM:
 				if ins.K >= bpfMemWords {
-					return 0, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
+					return 0, steps, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
 				}
 				a = mem[ins.K]
 			default:
-				return 0, fmt.Errorf("bpf: pc %d: unsupported load %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported load %#04x", pc, ins.Op)
 			}
 		case bpfLDX:
 			switch ins.Op {
@@ -159,15 +167,15 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 				x = ins.K
 			case bpfLDX | bpfMEM:
 				if ins.K >= bpfMemWords {
-					return 0, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
+					return 0, steps, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
 				}
 				x = mem[ins.K]
 			default:
-				return 0, fmt.Errorf("bpf: pc %d: unsupported ldx %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported ldx %#04x", pc, ins.Op)
 			}
 		case bpfST, bpfSTX:
 			if ins.K >= bpfMemWords {
-				return 0, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
+				return 0, steps, fmt.Errorf("bpf: pc %d: scratch index %d", pc, ins.K)
 			}
 			if ins.Op&0x07 == bpfST {
 				mem[ins.K] = a
@@ -176,7 +184,7 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 			}
 		case bpfALU:
 			if !validALU(ins.Op) {
-				return 0, fmt.Errorf("bpf: pc %d: unsupported alu %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported alu %#04x", pc, ins.Op)
 			}
 			operand := ins.K
 			if ins.Op&bpfX != 0 {
@@ -187,7 +195,7 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 			if !ok {
 				// Division by zero terminates a classic BPF program with 0,
 				// which for seccomp is SECCOMP_RET_KILL_THREAD.
-				return 0, nil
+				return 0, steps, nil
 			}
 		case bpfJMP:
 			if ins.Op == bpfJMP|bpfJA {
@@ -209,7 +217,7 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 			case bpfJSET:
 				cond = a&operand != 0
 			default:
-				return 0, fmt.Errorf("bpf: pc %d: unsupported jump %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported jump %#04x", pc, ins.Op)
 			}
 			if cond {
 				pc += int(ins.Jt)
@@ -219,11 +227,11 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 		case bpfRET:
 			switch ins.Op & 0x18 {
 			case bpfK:
-				return ins.K, nil
+				return ins.K, steps, nil
 			case bpfA:
-				return a, nil
+				return a, steps, nil
 			default:
-				return 0, fmt.Errorf("bpf: pc %d: unsupported return %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported return %#04x", pc, ins.Op)
 			}
 		case bpfMISC:
 			switch ins.Op & 0xf8 {
@@ -232,11 +240,11 @@ func Run(insns []Instruction, d Data) (uint32, error) {
 			case bpfTXA:
 				a = x
 			default:
-				return 0, fmt.Errorf("bpf: pc %d: unsupported misc %#04x", pc, ins.Op)
+				return 0, steps, fmt.Errorf("bpf: pc %d: unsupported misc %#04x", pc, ins.Op)
 			}
 		}
 	}
-	return 0, ErrNoReturn
+	return 0, steps, ErrNoReturn
 }
 
 func alu(op uint16, a, v uint32) (uint32, bool) {
