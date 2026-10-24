@@ -60,15 +60,48 @@ echo "rootfs: $tarball (sha256 $sha256)"
 echo "building minirun for linux/$goarch"
 CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -trimpath -o "$cache/bin/minirun" ./cmd/minirun
 
+# Unit-test binaries for Linux, so the Linux build of every package is
+# tested too (CI runs them natively; this covers machines that are not
+# Linux). Coverage is collected across all of them.
+echo "building unit-test binaries for linux/$goarch"
+rm -rf "$cache/tests" "$cache/cover"
+mkdir -p "$cache/tests" "$cache/cover"
+for pkg in $(go list ./internal/...); do
+	rel=${pkg#github.com/archit2501/minirun/}
+	if [ -n "$(go list -f '{{.TestGoFiles}}{{.XTestGoFiles}}' "$pkg" | tr -d '[]')" ]; then
+		CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go test -c -cover -coverpkg=./internal/... \
+			-o "$cache/tests/$(echo "$rel" | tr / _).test" "./$rel"
+	fi
+done
+
 image="p50-39-minirun-itest:$ALPINE_VERSION-$alpine_arch"
 name="p50-39-minirun-itest-$$"
 cleanup() {
-	docker rm -f "$name" >/dev/null 2>&1 || true
+	docker rm -f "$name" "$name-unit" >/dev/null 2>&1 || true
 	docker rmi -f "$image" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT INT TERM
 docker import "$tarball" "$image" >/dev/null
 
+echo "== unit tests on Linux ($(docker info --format '{{.KernelVersion}}'))"
+docker run --rm --name "$name-unit" \
+	-v "$PWD:/src:ro" -v "$PWD/$cache/cover:/cover" \
+	"$image" /bin/sh -c '
+		status=0
+		for t in /src/.cache/tests/*.test; do
+			pkg=$(basename "$t" .test | tr _ /)
+			if (cd "/src/$pkg" && "$t" -test.count=1 -test.gocoverdir=/cover >/tmp/out 2>&1); then
+				echo "ok   $pkg"
+			else
+				echo "FAIL $pkg"; cat /tmp/out; status=1
+			fi
+		done
+		exit $status'
+go tool covdata textfmt -i "$cache/cover" -o "$cache/linux-coverage.out"
+grep -v '_linux\.go:' "$cache/linux-coverage.out" >"$cache/linux-coverage-core.out"
+echo "linux unit-test coverage: core logic $(go tool cover -func="$cache/linux-coverage-core.out" | awk '/^total:/ {print $3}'), all code incl. kernel glue $(go tool cover -func="$cache/linux-coverage.out" | awk '/^total:/ {print $3}')"
+
+echo "== containers"
 docker run --rm --name "$name" --privileged --cgroupns=private \
 	-v "$PWD/$cache/bin/minirun:/usr/local/bin/minirun:ro" \
 	-v "$PWD/test/integration:/itest:ro" \

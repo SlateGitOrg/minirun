@@ -78,7 +78,7 @@ expect_eq "pivot_root into the bundle rootfs" "$out" "$(printf '3.20.3\nisolated
 # devices (tunl0, gre0, ...), which are always down; what matters is that the
 # host's interfaces are absent and only loopback is up.
 # (IFF_UP is bit 0, so an "up" flags value ends in an odd hex digit.)
-mkbundle net -- /bin/sh -c 'for i in /sys/class/net/*; do case $(cat $i/flags) in *[13579bdf]) basename $i ;; esac; done; test -e /sys/class/net/eth0 && echo eth0-visible; true'
+mkbundle net -- /bin/sh -c 'for i in /sys/class/net/*; do [ -d $i ] || continue; case $(cat $i/flags) in *[13579bdf]) basename $i ;; esac; done; test -e /sys/class/net/eth0 && echo eth0-visible; true'
 expect_eq "network namespace: host interfaces hidden, only lo up" "$($M run --bundle /bundles/net --rm t-net)" "lo"
 
 mkbundle exit -- /bin/sh -c 'exit 7'
