@@ -222,11 +222,13 @@ checks each one on a real kernel. But read
 [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) before trusting it with
 anything:
 
-- It is **not audited** and has none of the CVE history-driven hardening of
-  runc/crun (e.g. no protection against `/proc/self/exe` overwrite attacks
-  of the CVE-2019-5736 kind beyond read-only rootfs options; no
-  `O_PATH`/`openat2` mount-target resolution, so a container process that
-  can race the parent could in principle swap a mount target).
+- It is **not audited**. It carries one piece of runc's CVE-driven
+  hardening (helpers are re-executed from a write-sealed memfd copy of the
+  binary, closing the CVE-2019-5736 `/proc/<pid>/exe` overwrite), but not
+  the rest: mount targets are resolved with a userspace `SecureJoin`, not
+  `openat2(RESOLVE_IN_ROOT)`, so a host process with write access to the
+  bundle rootfs that races minirun could swap a path component for a
+  symlink between resolution and mount.
 - The default configuration **runs as root without a user namespace**, like
   Docker's default: container root is host root with a reduced capability
   set and seccomp filter. Use `--userns` for UID isolation.
