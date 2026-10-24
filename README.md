@@ -145,7 +145,7 @@ abridged:
 == unit tests on Linux (7.0.14-linuxkit)
 ok   internal/caps
 ...
-linux unit-test coverage: core logic 94.3%, all code incl. kernel glue 80.1%
+linux unit-test coverage: core logic 94.2%, all code incl. kernel glue 79.9%
 == containers
 ok 1 - container init is pid 1
 ok 3 - uts namespace sets hostname
@@ -182,13 +182,13 @@ All numbers below are produced by the commands shown, on an Apple M1 Pro
 | Metric | Value | Command |
 |---|---|---|
 | Core-logic statement coverage (macOS) | 94.1% | `make cover` |
-| Core-logic coverage, Linux unit tests | 94.3% (80.1% including the kernel glue that unit tests cannot run) | `make integration` |
+| Core-logic coverage, Linux unit tests | 94.2% (79.9% including the kernel glue that unit tests cannot run) | `make integration` |
 | Integration assertions | 46/46 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
 | Default profile size | 302 rules -> 105 instructions (x86-64), 106 (arm64) | `bin/minirun seccomp --default --arch x86_64` |
 | BPF instructions executed per syscall, default profile, x86-64 | avg 11.0, max 17 (linear jeq chain: avg 187.1, max 302) | `bin/minirun seccomp --default --arch x86_64 --cost` |
 | Same, arm64 | avg 10.1, max 16 (linear: avg 160.9, max 262) | `bin/minirun seccomp --default --arch aarch64 --cost` |
-| Compile default profile | ~127 µs/op, 982 allocs | `make bench` |
-| Interpret one syscall (Go VM, not the kernel) | ~28 ns/op | `make bench` |
+| Compile default profile | 127-137 µs/op across runs, 982 allocs | `make bench` |
+| Interpret one syscall (Go VM, not the kernel) | ~27.5 ns/op | `make bench` |
 | Non-test Go code | 6,145 lines excluding comments, blank lines and the generated syscall table | `find . -name '*.go' ! -name '*_test.go' ! -name ztables.go -not -path './.cache/*' \| xargs cat \| grep -Evc '^[[:space:]]*(//\|$)'` |
 
 The "linear jeq chain" figure is computed, not measured: it is the cost of
