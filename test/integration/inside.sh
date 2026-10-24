@@ -77,7 +77,8 @@ expect_eq "pivot_root into the bundle rootfs" "$out" "$(printf '3.20.3\nisolated
 # A new network namespace may also contain the kernel's fallback tunnel
 # devices (tunl0, gre0, ...), which are always down; what matters is that the
 # host's interfaces are absent and only loopback is up.
-mkbundle net -- /bin/sh -c 'for i in /sys/class/net/*; do [ $(( $(cat $i/flags) & 1 )) -eq 1 ] && basename $i; done; test -e /sys/class/net/eth0 && echo eth0-visible || true'
+# (IFF_UP is bit 0, so an "up" flags value ends in an odd hex digit.)
+mkbundle net -- /bin/sh -c 'for i in /sys/class/net/*; do case $(cat $i/flags) in *[13579bdf]) basename $i ;; esac; done; test -e /sys/class/net/eth0 && echo eth0-visible; true'
 expect_eq "network namespace: host interfaces hidden, only lo up" "$($M run --bundle /bundles/net --rm t-net)" "lo"
 
 mkbundle exit -- /bin/sh -c 'exit 7'
