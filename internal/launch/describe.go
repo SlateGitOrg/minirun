@@ -22,6 +22,9 @@ func (p *Plan) Describe(w io.Writer) error {
 	}
 
 	ew.printf("\n[2] cgroup %s/%s\n", p.Cgroup.Root, p.Cgroup.Path)
+	if p.CgroupNS {
+		ew.printf("    init joins it early, then unshares a cgroup namespace rooted there\n")
+	}
 	if len(p.Cgroup.Controllers) > 0 {
 		ew.printf("    delegate +%s along the path\n", strings.Join(p.Cgroup.Controllers, " +"))
 	}

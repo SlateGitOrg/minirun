@@ -17,7 +17,7 @@ func NewLauncher() Launcher { return unsupportedLauncher{} }
 
 func (unsupportedLauncher) Check() error { return ErrUnsupported }
 
-func (unsupportedLauncher) StartInit(context.Context, *launch.Plan, Stdio) (Child, error) {
+func (unsupportedLauncher) StartInit(context.Context, *launch.Plan, Stdio, func(int) error) (Child, error) {
 	return nil, ErrUnsupported
 }
 

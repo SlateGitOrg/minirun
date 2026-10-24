@@ -47,7 +47,10 @@ type Launcher interface {
 	// run can fail before it touches state or cgroups.
 	Check() error
 	// StartInit creates the container's init process in new namespaces.
-	StartInit(ctx context.Context, plan *launch.Plan, stdio Stdio) (Child, error)
+	// join is called with the child's pid if the child asks to be moved
+	// into its cgroup during setup (needed before it creates a cgroup
+	// namespace).
+	StartInit(ctx context.Context, plan *launch.Plan, stdio Stdio, join func(pid int) error) (Child, error)
 	// StartExec starts an additional process inside the running container
 	// whose init has the given pid.
 	StartExec(ctx context.Context, plan *launch.Plan, initPid int, proc launch.Process, stdio Stdio) (Child, error)
@@ -210,7 +213,7 @@ func (r *Runtime) create(ctx context.Context, plan *launch.Plan, o RunOptions) (
 		defer func() { _ = console.Close() }()
 		stdio = Stdio{Out: console, Err: console}
 	}
-	child, err = r.Launcher.StartInit(ctx, plan, stdio)
+	child, err = r.Launcher.StartInit(ctx, plan, stdio, cg.AddProc)
 	if err != nil {
 		return nil, err
 	}

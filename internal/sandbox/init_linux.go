@@ -32,21 +32,25 @@ func openChild() *child {
 
 // fail reports err to the parent. The caller exits non-zero afterwards.
 func (c *child) fail(err error) error {
-	_ = WriteMessage(c.status, Message{Type: "error", Message: err.Error()})
+	_ = WriteMessage(c.status, Message{Type: MsgError, Message: err.Error()})
 	return err
 }
 
-// handshake tells the parent the child is ready and waits for the go-ahead.
-func (c *child) handshake() error {
-	if err := WriteMessage(c.status, Message{Type: "ready", Pid: os.Getpid()}); err != nil {
-		return fmt.Errorf("report ready: %w", err)
+// request sends a message and waits for the parent's one-byte answer on the
+// start pipe.
+func (c *child) request(msgType string) error {
+	if err := WriteMessage(c.status, Message{Type: msgType, Pid: os.Getpid()}); err != nil {
+		return fmt.Errorf("send %s: %w", msgType, err)
 	}
 	var b [1]byte
 	if _, err := io.ReadFull(c.start, b[:]); err != nil {
-		return fmt.Errorf("wait for start: %w", err)
+		return fmt.Errorf("wait for answer to %s: %w", msgType, err)
 	}
 	return nil
 }
+
+// handshake tells the parent the child is ready and waits for the go-ahead.
+func (c *child) handshake() error { return c.request(MsgReady) }
 
 // execProcess performs the final privilege drop and replaces the process
 // image. On success it does not return.
@@ -101,6 +105,14 @@ func initContainer(p *launch.Plan, c *child) error {
 	lastCap, err := caps.KernelLast()
 	if err != nil {
 		return err
+	}
+	if p.CgroupNS {
+		if err := c.request(MsgJoinCgroup); err != nil {
+			return err
+		}
+		if err := unix.Unshare(unix.CLONE_NEWCGROUP); err != nil {
+			return fmt.Errorf("unshare(CLONE_NEWCGROUP): %w", err)
+		}
 	}
 	if err := setupRootfs(p); err != nil {
 		return err

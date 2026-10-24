@@ -63,7 +63,7 @@ func (s *stubLauncher) child(plan *launch.Plan) *stubChild {
 	return &stubChild{s: s, pid: s.spawn(), procs: filepath.Join(s.cgroup, plan.Cgroup.Path, "cgroup.procs")}
 }
 
-func (s *stubLauncher) StartInit(_ context.Context, plan *launch.Plan, _ runtime.Stdio) (runtime.Child, error) {
+func (s *stubLauncher) StartInit(_ context.Context, plan *launch.Plan, _ runtime.Stdio, _ func(int) error) (runtime.Child, error) {
 	return s.child(plan), nil
 }
 

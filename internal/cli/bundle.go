@@ -63,6 +63,7 @@ func cmdSpec(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []string
 	userns := fs.Bool("userns", false, "add a user namespace mapping container 0-65535 to host --host-id...")
 	hostID := fs.Uint("host-id", 100000, "first host uid/gid of the user namespace mapping")
 	hostNet := fs.Bool("host-network", false, "share the host network namespace")
+	cgroupNS := fs.Bool("cgroupns", false, "add a cgroup namespace rooted at the container's cgroup")
 	readonly := fs.Bool("readonly", false, "make the root filesystem read-only")
 	memory := fs.String("memory", "", "memory limit, e.g. 64M (swap disabled)")
 	pids := fs.Int64("pids", 0, "maximum number of tasks")
@@ -80,7 +81,7 @@ func cmdSpec(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []string
 	}
 	o := spec.DefaultOptions{
 		Args: cmdArgs, Rootfs: *rootfs, Hostname: *hostname, ReadOnly: *readonly,
-		UserNS: *userns, HostIDBase: uint32(*hostID), HostNetwork: *hostNet, PidsLimit: *pids,
+		UserNS: *userns, HostIDBase: uint32(*hostID), HostNetwork: *hostNet, CgroupNS: *cgroupNS, PidsLimit: *pids,
 	}
 	if *memory != "" {
 		if o.MemoryLimit, err = ParseSize(*memory); err != nil {

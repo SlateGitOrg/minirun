@@ -135,6 +135,24 @@ func TestBuildUserNSAndNoSeccomp(t *testing.T) {
 	}
 }
 
+func TestBuildCgroupNamespaceIsDeferred(t *testing.T) {
+	s := spec.Default(spec.DefaultOptions{CgroupNS: true})
+	p, err := Build(bundle(s), opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.CgroupNS || p.CloneFlags&CloneNewCgroup != 0 {
+		t.Errorf("CgroupNS=%v cloneFlags=%#x", p.CgroupNS, p.CloneFlags)
+	}
+	if got := strings.Join(p.ProcNamespaces(), ","); got != "ipc,uts,net,pid,cgroup,mnt" {
+		t.Errorf("ProcNamespaces = %s", got)
+	}
+	var buf bytes.Buffer
+	if err := p.Describe(&buf); err != nil || !strings.Contains(buf.String(), "unshares a cgroup namespace") {
+		t.Errorf("describe: %v", err)
+	}
+}
+
 func TestBuildAggregatesErrors(t *testing.T) {
 	s := defaultSpec()
 	s.Process.Capabilities.Effective = append(s.Process.Capabilities.Effective, "CAP_SYS_ADMIN")

@@ -59,6 +59,9 @@ type DefaultOptions struct {
 	// HostNetwork keeps the container in the host network namespace. By
 	// default a fresh network namespace with only loopback is created.
 	HostNetwork bool
+	// CgroupNS adds a cgroup namespace, so /proc/self/cgroup shows the
+	// container's cgroup as "/".
+	CgroupNS    bool
 	MemoryLimit int64 // bytes; 0 means no limit
 	PidsLimit   int64 // 0 means no limit
 	CPUQuota    int64 // microseconds per CPUPeriod; 0 means no limit
@@ -119,6 +122,9 @@ func Default(o DefaultOptions) *Spec {
 	}
 	if !o.HostNetwork {
 		s.Linux.Namespaces = append(s.Linux.Namespaces, Namespace{Type: NetworkNamespace})
+	}
+	if o.CgroupNS {
+		s.Linux.Namespaces = append(s.Linux.Namespaces, Namespace{Type: CgroupNamespace})
 	}
 	if o.UserNS {
 		s.Linux.Namespaces = append(s.Linux.Namespaces, Namespace{Type: UserNamespace})

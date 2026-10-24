@@ -24,7 +24,7 @@ production runtime; see [Security caveats](#security-caveats).
 
 | Area | Implementation |
 |---|---|
-| Namespaces | pid, mount, uts, ipc, net (loopback brought up), user (uid/gid maps, `setgroups` denied), cgroup |
+| Namespaces | pid, mount, uts, ipc, net (loopback brought up), user (uid/gid maps, `setgroups` denied), cgroup (created after the cgroup join, so it is rooted at the container's cgroup) |
 | cgroup v2 | creates `minirun/<id>`, delegates controllers along the path, converts OCI `memory`/`cpu`/`pids`/`unified` limits (runc's conversions), `cgroup.kill` teardown, stats incl. OOM kills |
 | Root filesystem | overlayfs (bundle rootfs read-only lower, per-container upper in the state dir), OCI mounts with symlink-safe target resolution, host devices bind-mounted, `pivot_root(".", ".")`, masked and read-only paths, read-only root |
 | Privileges | bounding set trimmed, `capset` of effective/permitted/inheritable, ambient set, `no_new_privs`, uid/gid/supplementary groups, rlimits, umask |
@@ -145,7 +145,7 @@ abridged:
 == unit tests on Linux (7.0.14-linuxkit)
 ok   internal/caps
 ...
-linux unit-test coverage: core logic 94.3%, all code incl. kernel glue 80.9%
+linux unit-test coverage: core logic 94.3%, all code incl. kernel glue 80.1%
 == containers
 ok 1 - container init is pid 1
 ok 3 - uts namespace sets hostname
@@ -159,8 +159,8 @@ ok 26 - pids limit: fork fails
 ok 32 - exec joins the pid namespace
 ok 42 - delete -f kills and removes
 ...
-1..44
-# passed 44, failed 0
+1..46
+# passed 46, failed 0
 ```
 
 ## Testing
@@ -172,7 +172,7 @@ ok 42 - delete -f kills and removes
 | Fuzz | same property, open-ended | `make fuzz` |
 | Golden | seccomp disassembly, launch plan description | `UPDATE_GOLDEN=1 go test ./...` to refresh |
 | Linux unit | every package's tests as Linux binaries in Docker | first phase of `make integration` |
-| Integration | 44 assertions on real containers: pid 1, hostname, mount/pivot isolation, net ns, overlay upper, read-only root, masked paths, rlimits, capability masks, seccomp errno, namespace-creation block, user ns maps, OOM kill + `oomKilled`, pids limit, cpu.max, exec into pid/mnt ns with caps, kill/delete/`-f`, exec-into-userns refusal | `make integration` |
+| Integration | 46 assertions on real containers: pid 1, hostname, cgroup namespace root, mount/pivot isolation, net ns, overlay upper, read-only root, masked paths, rlimits, capability masks, seccomp errno, namespace-creation block, user ns maps, OOM kill + `oomKilled`, pids limit, cpu.max, exec into pid/mnt ns with caps, kill/delete/`-f`, exec-into-userns refusal | `make integration` |
 
 ## Benchmarks and evaluation
 
@@ -182,8 +182,8 @@ All numbers below are produced by the commands shown, on an Apple M1 Pro
 | Metric | Value | Command |
 |---|---|---|
 | Core-logic statement coverage (macOS) | 94.1% | `make cover` |
-| Core-logic coverage, Linux unit tests | 94.3% (80.9% incl. untested-by-unit-test kernel glue) | `make integration` |
-| Integration assertions | 44/44 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
+| Core-logic coverage, Linux unit tests | 94.3% (80.1% including the kernel glue that unit tests cannot run) | `make integration` |
+| Integration assertions | 46/46 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
 | Default profile size | 302 rules -> 105 instructions (x86-64), 106 (arm64) | `bin/minirun seccomp --default --arch x86_64` |
 | BPF instructions executed per syscall, default profile, x86-64 | avg 11.0, max 17 (linear jeq chain: avg 187.1, max 302) | `bin/minirun seccomp --default --arch x86_64 --cost` |
 | Same, arm64 | avg 10.1, max 16 (linear: avg 160.9, max 262) | `bin/minirun seccomp --default --arch aarch64 --cost` |
@@ -255,6 +255,12 @@ anything:
   the exec'd process inherits the container's rlimits and seccomp filter but
   not per-exec overrides of them.
 - `ps ID` lists host pids from `cgroup.procs`, not a `ps` table.
+- No init shim: the container command is pid 1, which the kernel shields
+  from signals it has no handler for, so Ctrl-C forwarded to a shell that
+  ignores SIGINT does not stop it (use `minirun kill ID KILL`).
+- With a cgroup namespace, init joins its cgroup before mounting (the
+  namespace must be rooted there), so the Go runtime's few threads count
+  against `pids.max` during setup; very small limits can fail to start.
 - Unsupported OCI keys are reported by `validate` and ignored, not enforced.
 - CI is defined in `.github/workflows/ci.yml` but has not run: the
   repository has not been pushed. The same gates were run locally.

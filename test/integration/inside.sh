@@ -81,6 +81,12 @@ expect_eq "pivot_root into the bundle rootfs" "$out" "$(printf '3.20.3\nisolated
 mkbundle net -- /bin/sh -c 'for i in /sys/class/net/*; do [ -d $i ] || continue; case $(cat $i/flags) in *[13579bdf]) basename $i ;; esac; done; test -e /sys/class/net/eth0 && echo eth0-visible; true'
 expect_eq "network namespace: host interfaces hidden, only lo up" "$($M run --bundle /bundles/net --rm t-net)" "lo"
 
+mkbundle cgns --cgroupns -- /bin/cat /proc/self/cgroup
+expect_eq "cgroup namespace is rooted at the container's cgroup" "$($M run --bundle /bundles/cgns --rm t-cgns)" "0::/"
+
+mkbundle cgpath -- /bin/cat /proc/self/cgroup
+expect_eq "without a cgroup namespace the full path is visible" "$($M run --bundle /bundles/cgpath --rm t-cgpath)" "0::/minirun/t-cgpath"
+
 mkbundle exit -- /bin/sh -c 'exit 7'
 $M run --bundle /bundles/exit --rm t-exit
 expect_eq "exit status propagates" "$?" "7"

@@ -97,14 +97,20 @@ func (l *fakeLauncher) exit(pid int) {
 	_ = os.RemoveAll(filepath.Join(l.procRoot, strconv.Itoa(pid)))
 }
 
-func (l *fakeLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio runtime.Stdio) (runtime.Child, error) {
+func (l *fakeLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio runtime.Stdio, join func(int) error) (runtime.Child, error) {
 	if l.initErr != nil {
 		return nil, l.initErr
+	}
+	pid := l.spawn()
+	if plan.CgroupNS {
+		if err := join(pid); err != nil {
+			return nil, err
+		}
 	}
 	if stdio.Out != nil {
 		_, _ = stdio.Out.Write([]byte("init output\n"))
 	}
-	return &fakeChild{l: l, pid: l.spawn(), cgroup: plan.Cgroup.Path, startErr: l.startErr}, nil
+	return &fakeChild{l: l, pid: pid, cgroup: plan.Cgroup.Path, startErr: l.startErr}, nil
 }
 
 func (l *fakeLauncher) StartExec(_ context.Context, plan *launch.Plan, _ int, proc launch.Process, _ runtime.Stdio) (runtime.Child, error) {
@@ -228,6 +234,22 @@ func TestForegroundRunRecordsExit(t *testing.T) {
 	}
 	if _, err := h.rt.State("c1"); !errors.Is(err, state.ErrNotFound) {
 		t.Errorf("state after delete: %v", err)
+	}
+}
+
+func TestCgroupNamespaceJoinsEarly(t *testing.T) {
+	h := newHarness(t, spec.DefaultOptions{CgroupNS: true})
+	if _, err := h.rt.Run(context.Background(), runtime.RunOptions{ID: "cns", Bundle: h.bundle}); err != nil {
+		t.Fatal(err)
+	}
+	joins := 0
+	for _, w := range h.cg.Writes() {
+		if strings.HasSuffix(w.Path, "cns/cgroup.procs") {
+			joins++
+		}
+	}
+	if joins != 2 {
+		t.Errorf("cgroup.procs written %d times, want 2 (early join for the namespace, then before exec)", joins)
 	}
 }
 

@@ -154,7 +154,14 @@ type Plan struct {
 	ReadonlyRoot bool   `json:"readonlyRoot"`
 	Propagation  uint64 `json:"propagation"`
 
-	CloneFlags  uint64           `json:"cloneFlags"`
+	// CloneFlags are passed to clone(2). They never include
+	// CLONE_NEWCGROUP: see CgroupNS.
+	CloneFlags uint64 `json:"cloneFlags"`
+	// CgroupNS requests a cgroup namespace. Init creates it with
+	// unshare(2) only after the parent has moved it into the container's
+	// cgroup, so the namespace is rooted at that cgroup rather than at
+	// minirun's own.
+	CgroupNS    bool             `json:"cgroupNamespace,omitempty"`
 	Namespaces  []string         `json:"namespaces"`
 	UIDMappings []spec.IDMapping `json:"uidMappings,omitempty"`
 	GIDMappings []spec.IDMapping `json:"gidMappings,omitempty"`
@@ -223,7 +230,11 @@ func Build(b *spec.Bundle, o Options) (*Plan, error) {
 	add(err)
 
 	for _, ns := range s.Linux.Namespaces {
-		p.CloneFlags |= nsFlags[ns.Type]
+		if ns.Type == spec.CgroupNamespace {
+			p.CgroupNS = true
+		} else {
+			p.CloneFlags |= nsFlags[ns.Type]
+		}
 		p.Namespaces = append(p.Namespaces, string(ns.Type))
 	}
 	sort.Strings(p.Namespaces)
@@ -351,7 +362,7 @@ func buildCgroup(s *spec.Spec, o Options) (Cgroup, error) {
 func (p *Plan) ProcNamespaces() []string {
 	var out []string
 	for _, ns := range procNSNames {
-		if p.CloneFlags&nsFlags[ns.Type] != 0 {
+		if p.CloneFlags&nsFlags[ns.Type] != 0 || (ns.Type == spec.CgroupNamespace && p.CgroupNS) {
 			out = append(out, ns.Name)
 		}
 	}

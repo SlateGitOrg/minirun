@@ -9,6 +9,7 @@
 //
 //	fd 3  plan pipe    parent -> child, one JSON document, then EOF
 //	fd 4  start pipe   parent -> child, one byte once the parent is ready
+//	                   (and one earlier byte answering "join-cgroup")
 //	fd 5  status pipe  child -> parent, JSON lines; close-on-exec, so EOF
 //	                   without an error message means exec succeeded
 //	fd 6  (exec only)  the container's /proc/<pid>/ns/mnt
@@ -32,9 +33,16 @@ const (
 	MntNSFD  = 6
 )
 
+// Message types sent by the child.
+const (
+	MsgReady      = "ready"
+	MsgError      = "error"
+	MsgJoinCgroup = "join-cgroup"
+)
+
 // Message is one status line from the child.
 type Message struct {
-	Type    string `json:"type"` // "ready" or "error"
+	Type    string `json:"type"` // MsgReady, MsgError or MsgJoinCgroup
 	Message string `json:"message,omitempty"`
 	Pid     int    `json:"pid,omitempty"`
 }
@@ -83,7 +91,7 @@ func (s *StatusReader) Next() (Message, error) {
 	if err := json.Unmarshal(line, &m); err != nil {
 		return Message{}, fmt.Errorf("decode child status %q: %w", line, err)
 	}
-	if m.Type == "error" {
+	if m.Type == MsgError {
 		return m, fmt.Errorf("container setup failed: %s", m.Message)
 	}
 	return m, nil

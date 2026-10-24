@@ -183,8 +183,9 @@ func (c *linuxChild) Abort() {
 	_ = c.statusFile.Close()
 }
 
-// startChild launches the helper, sends it the plan and waits for "ready".
-func startChild(cmd *exec.Cmd, p *pipes, plan any, extra ...*os.File) (*linuxChild, error) {
+// startChild launches the helper, sends it the plan and waits for "ready",
+// answering "join-cgroup" requests on the way with join.
+func startChild(cmd *exec.Cmd, p *pipes, plan any, join func(int) error, extra ...*os.File) (*linuxChild, error) {
 	cmd.ExtraFiles = append([]*os.File{p.planR, p.startR, p.statusW}, extra...)
 	if err := cmd.Start(); err != nil {
 		p.closeAll()
@@ -200,7 +201,16 @@ func startChild(cmd *exec.Cmd, p *pipes, plan any, extra ...*os.File) (*linuxChi
 		return nil, fmt.Errorf("send plan: %w", werr)
 	}
 	msg, err := child.status.Next()
-	if err == nil && msg.Type != "ready" {
+	for err == nil && msg.Type == sandbox.MsgJoinCgroup && join != nil {
+		if err = join(child.Pid()); err != nil {
+			break
+		}
+		if _, err = child.start.Write([]byte{1}); err != nil {
+			break
+		}
+		msg, err = child.status.Next()
+	}
+	if err == nil && msg.Type != sandbox.MsgReady {
 		err = fmt.Errorf("unexpected child message %q", msg.Type)
 	}
 	if errors.Is(err, sandbox.ErrExecSucceeded) {
@@ -224,7 +234,7 @@ func idMaps(maps []spec.IDMapping) []syscall.SysProcIDMap {
 // StartInit implements Launcher.
 // The context is not tied to the process: a container must outlive the CLI
 // invocation that created it.
-func (l *LinuxLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio Stdio) (Child, error) {
+func (l *LinuxLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio Stdio, join func(int) error) (Child, error) {
 	cmd, bin, err := l.command(context.Background(), "__init", 3)
 	if err != nil {
 		return nil, err
@@ -247,7 +257,7 @@ func (l *LinuxLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio St
 		attr.Credential = &syscall.Credential{Uid: 0, Gid: 0, NoSetGroups: true}
 	}
 	cmd.SysProcAttr = attr
-	return startChild(cmd, p, plan, bin)
+	return startChild(cmd, p, plan, join, bin)
 }
 
 // StartExec implements Launcher. The namespaces other than mount are joined
@@ -294,7 +304,7 @@ func (l *LinuxLauncher) startExecLocked(ctx context.Context, plan *launch.Plan, 
 		return nil, err
 	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdio.In, stdio.Out, stdio.Err
-	return startChild(cmd, p, sandbox.ExecPlan{Process: proc, Seccomp: plan.Seccomp}, mnt, bin)
+	return startChild(cmd, p, sandbox.ExecPlan{Process: proc, Seccomp: plan.Seccomp}, nil, mnt, bin)
 }
 
 func joinNamespace(path string) error {
