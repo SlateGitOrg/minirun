@@ -117,7 +117,7 @@ Excerpt of `make demo` on macOS (full run in the
 [5] privileges  uid=0 gid=0 no_new_privs=true
     bounding    00000000a80425fb  (14 caps)
     effective   00000000a80425fb
-    seccomp SCMP_ARCH_X86_64: 302 rules -> 105 BPF instructions over 64 syscall ranges, default SCMP_ACT_ERRNO(1)
+    seccomp SCMP_ARCH_X86_64: 303 rules -> 107 BPF instructions over 64 syscall ranges, default SCMP_ACT_ERRNO(1)
 
 simulated cgroupfs writes (fake hierarchy at /tmp/.../cgroupfs):
   echo "+cpu +memory +pids" > /sys/fs/cgroup/cgroup.subtree_control
@@ -145,7 +145,7 @@ abridged:
 == unit tests on Linux (7.0.14-linuxkit)
 ok   internal/caps
 ...
-linux unit-test coverage: core logic 94.2%, all code incl. kernel glue 79.9%
+linux unit-test coverage: core logic 94.2%, all code incl. kernel glue 79.8%
 == containers
 ok 1 - container init is pid 1
 ok 3 - uts namespace sets hostname
@@ -154,14 +154,17 @@ ok 7 - cgroup namespace is rooted at the container's cgroup
 ok 15 - effective capabilities are the default set
 ok 20 - seccomp profile denies mkdir with the configured errno
 ok 22 - default profile blocks namespace creation
-ok 23 - user namespace maps root to host 100000
-ok 24 - memory limit: OOM kill exits 137
-ok 28 - pids limit: fork fails
-ok 34 - exec joins the pid namespace
-ok 44 - delete -f kills and removes
+ok 23 - default profile denies AF_VSOCK
+ok 24 - default profile denies AF_VSOCK with high argument bits set
+# AF_VSOCK without seccomp (control): plain=created hi=created
+ok 25 - user namespace maps root to host 100000
+ok 26 - memory limit: OOM kill exits 137
+ok 30 - pids limit: fork fails
+ok 36 - exec joins the pid namespace
+ok 46 - delete -f kills and removes
 ...
-1..46
-# passed 46, failed 0
+1..48
+# passed 48, failed 0
 ```
 
 ## Testing
@@ -173,7 +176,7 @@ ok 44 - delete -f kills and removes
 | Fuzz | same property, open-ended | `make fuzz` |
 | Golden | seccomp disassembly, launch plan description | `UPDATE_GOLDEN=1 go test ./...` to refresh |
 | Linux unit | every package's tests as Linux binaries in Docker | first phase of `make integration` |
-| Integration | 46 assertions on real containers: pid 1, hostname, cgroup namespace root, mount/pivot isolation, net ns, overlay upper, read-only root, masked paths, rlimits, capability masks, seccomp errno, namespace-creation block, user ns maps, OOM kill + `oomKilled`, pids limit, cpu.max, exec into pid/mnt ns with caps, kill/delete/`-f`, exec-into-userns refusal | `make integration` |
+| Integration | 48 assertions on real containers: pid 1, hostname, cgroup namespace root, mount/pivot isolation, net ns, overlay upper, read-only root, masked paths, rlimits, capability masks, seccomp errno, namespace-creation block, `AF_VSOCK` denial (incl. high argument bits), user ns maps, OOM kill + `oomKilled`, pids limit, cpu.max, exec into pid/mnt ns with caps, kill/delete/`-f`, exec-into-userns refusal | `make integration` |
 
 ## Benchmarks and evaluation
 
@@ -183,11 +186,11 @@ All numbers below are produced by the commands shown, on an Apple M1 Pro
 | Metric | Value | Command |
 |---|---|---|
 | Core-logic statement coverage (macOS) | 94.1% | `make cover` |
-| Core-logic coverage, Linux unit tests | 94.2% (79.9% including the kernel glue that unit tests cannot run) | `make integration` |
-| Integration assertions | 46/46 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
-| Default profile size | 302 rules -> 105 instructions (x86-64), 106 (arm64) | `bin/minirun seccomp --default --arch x86_64` |
-| BPF instructions executed per syscall, default profile, x86-64 | avg 11.0, max 17 (linear jeq chain: avg 187.1, max 302) | `bin/minirun seccomp --default --arch x86_64 --cost` |
-| Same, arm64 | avg 10.1, max 16 (linear: avg 160.9, max 262) | `bin/minirun seccomp --default --arch aarch64 --cost` |
+| Core-logic coverage, Linux unit tests | 94.2% (79.8% including the kernel glue that unit tests cannot run) | `make integration` |
+| Integration assertions | 48/48 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
+| Default profile size | 303 rules -> 107 instructions (x86-64), 108 (arm64) | `bin/minirun seccomp --default --arch x86_64` |
+| BPF instructions executed per syscall, default profile, x86-64 | avg 11.0, max 18 (linear jeq chain: avg 187.1, max 302) | `bin/minirun seccomp --default --arch x86_64 --cost` |
+| Same, arm64 | avg 10.1, max 17 (linear: avg 160.9, max 262) | `bin/minirun seccomp --default --arch aarch64 --cost` |
 | Compile default profile | 127-137 µs/op across runs, 982 allocs | `make bench` |
 | Interpret one syscall (Go VM, not the kernel) | ~27.5 ns/op | `make bench` |
 | Non-test Go code | 6,145 lines excluding comments, blank lines and the generated syscall table | `find . -name '*.go' ! -name '*_test.go' ! -name ztables.go -not -path './.cache/*' \| xargs cat \| grep -Evc '^[[:space:]]*(//\|$)'` |
@@ -240,6 +243,11 @@ anything:
   the default profile's behaviour on a kernel is spot-checked by the
   integration suite; it has not been differentially tested against
   libseccomp.
+- seccomp argument tests compare 64 bits, but the kernel reads `int`
+  arguments as 32 bits. The default profile masks where it matters
+  (`AF_VSOCK`, `clone` flags); a custom profile that denies with
+  `SCMP_CMP_NE`/`LT`/... on an `int` argument can be bypassed by setting
+  the upper 32 bits, as with Docker/libseccomp profiles.
 - Configs are trusted input: a config can bind-mount any host path and name
   any cgroup path.
 
