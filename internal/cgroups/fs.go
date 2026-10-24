@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -58,6 +59,8 @@ func (OSFS) WriteFile(path string, data []byte) error {
 // common cgroup misconfigurations.
 func explain(op, path string, err error) error {
 	switch {
+	case errors.Is(err, syscall.EBUSY) && strings.HasPrefix(op, "remove"):
+		return fmt.Errorf("%s %s: %w (processes or child cgroups remain)", op, path, err)
 	case errors.Is(err, syscall.EBUSY):
 		return fmt.Errorf("%s %s: %w (cgroup v2 forbids enabling controllers in a cgroup that has processes; move them to a leaf cgroup first)", op, path, err)
 	case errors.Is(err, os.ErrNotExist):
