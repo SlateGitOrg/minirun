@@ -118,6 +118,14 @@ func (m *Manager) Apply(settings []Setting) error {
 	return nil
 }
 
+// AddProc moves a process (all of its threads) into the cgroup.
+func (m *Manager) AddProc(pid int) error {
+	if err := m.fs.WriteFile(m.file("cgroup.procs"), []byte(strconv.Itoa(pid))); err != nil {
+		return explain("add process "+strconv.Itoa(pid)+" to", m.Path(), err)
+	}
+	return nil
+}
+
 // Exists reports whether the cgroup directory exists.
 func (m *Manager) Exists() bool {
 	_, err := m.fs.ReadFile(m.file("cgroup.procs"))
