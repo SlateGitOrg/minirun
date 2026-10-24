@@ -67,6 +67,9 @@ func setupRootfs(p *launch.Plan) error {
 		return err
 	}
 	if err := mount("overlay", p.Target, "overlay", 0, p.OverlayData); err != nil {
+		if errors.Is(err, unix.EINVAL) {
+			return fmt.Errorf("%w (overlayfs rejects an upper layer on overlayfs or another filesystem without xattr support; keep the state directory on tmpfs or ext4/xfs, e.g. the default /run/minirun)", err)
+		}
 		return err
 	}
 	for _, m := range p.Mounts {

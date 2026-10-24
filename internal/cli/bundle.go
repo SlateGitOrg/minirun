@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -67,6 +68,8 @@ func cmdSpec(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []string
 	pids := fs.Int64("pids", 0, "maximum number of tasks")
 	cpus := fs.String("cpus", "", "CPU limit as a number of CPUs, e.g. 0.5")
 	noSeccomp := fs.Bool("no-seccomp", false, "omit the default seccomp profile")
+	var deny multiFlag
+	fs.Var(&deny, "deny-syscall", "make NAME[:ERRNO] fail with ERRNO (default EPERM) in the default profile (repeatable)")
 	force := fs.Bool("force", false, "overwrite an existing output file")
 	cmdArgs, err := parse(fs, args, 0)
 	if err != nil {
@@ -91,6 +94,13 @@ func cmdSpec(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []string
 	}
 	if !*noSeccomp {
 		o.Seccomp = seccomp.DefaultProfile()
+		for _, d := range deny {
+			if err := denySyscall(o.Seccomp, d); err != nil {
+				return usageError{err.Error()}
+			}
+		}
+	} else if len(deny) > 0 {
+		return usagef("--deny-syscall needs the default seccomp profile")
 	}
 	s := spec.Default(o)
 	if err := spec.Validate(s); err != nil {
@@ -118,6 +128,32 @@ func cmdSpec(a *App, _ context.Context, _ Globals, _ *slog.Logger, args []string
 	}
 	_, err = fmt.Fprintf(a.Stdout, "wrote %s\n", *out)
 	return err
+}
+
+// denySyscall removes NAME from every rule of p and appends an ERRNO rule
+// for it, so the result has no conflicting unconditional rules.
+func denySyscall(p *spec.Seccomp, expr string) error {
+	name, errnoStr, hasErrno := strings.Cut(expr, ":")
+	errno := uint64(1)
+	if hasErrno {
+		var err error
+		if errno, err = strconv.ParseUint(errnoStr, 10, 12); err != nil || errno == 0 {
+			return fmt.Errorf("--deny-syscall %q: errno must be 1..4095", expr)
+		}
+	}
+	if name == "" {
+		return fmt.Errorf("--deny-syscall %q: syscall name required", expr)
+	}
+	kept := p.Syscalls[:0]
+	for _, r := range p.Syscalls {
+		r.Names = slices.DeleteFunc(slices.Clone(r.Names), func(n string) bool { return n == name })
+		if len(r.Names) > 0 {
+			kept = append(kept, r)
+		}
+	}
+	e := uint(errno)
+	p.Syscalls = append(kept, spec.Syscall{Names: []string{name}, Action: "SCMP_ACT_ERRNO", ErrnoRet: &e})
+	return nil
 }
 
 func cmdValidate(a *App, _ context.Context, g Globals, _ *slog.Logger, args []string) error {

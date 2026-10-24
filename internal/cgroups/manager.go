@@ -109,11 +109,16 @@ func (m *Manager) readList(path string) ([]string, error) {
 }
 
 // Apply writes the settings into the cgroup's interface files, in order.
+//
+// One write is allowed to find its file missing: memory.swap.max "0" on a
+// kernel built without swap accounting, where there is no swap to limit.
 func (m *Manager) Apply(settings []Setting) error {
 	for _, s := range settings {
-		if err := m.fs.WriteFile(m.file(s.File), []byte(s.Value)); err != nil {
-			return explain("write "+strconv.Quote(s.Value)+" to", m.file(s.File), err)
+		err := m.fs.WriteFile(m.file(s.File), []byte(s.Value))
+		if err == nil || (s.File == "memory.swap.max" && s.Value == "0" && errors.Is(err, fs.ErrNotExist)) {
+			continue
 		}
+		return explain("write "+strconv.Quote(s.Value)+" to", m.file(s.File), err)
 	}
 	return nil
 }
