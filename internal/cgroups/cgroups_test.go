@@ -221,9 +221,6 @@ func TestCreateApplyStatsDestroy(t *testing.T) {
 	if err := m.Kill(); !errors.Is(err, cgroups.ErrNotFound) {
 		t.Errorf("Kill after destroy: %v", err)
 	}
-	if m.Rel() != "minirun/c1" {
-		t.Errorf("Rel = %s", m.Rel())
-	}
 }
 
 func TestCreateErrors(t *testing.T) {

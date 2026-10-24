@@ -10,6 +10,7 @@ import (
 
 	"github.com/archit2501/minirun/internal/cgroups"
 	"github.com/archit2501/minirun/internal/launch"
+	"github.com/archit2501/minirun/internal/signals"
 	"github.com/archit2501/minirun/internal/state"
 )
 
@@ -113,6 +114,7 @@ func (r *Runtime) Kill(id string, sig int, all bool) error {
 	if st.Status != state.Running && st.Status != state.Created {
 		return fmt.Errorf("%s: %w (status %s)", id, ErrNotRunning, st.Status)
 	}
+	r.logger().Info("signalling container", "id", id, "signal", signals.Name(sig), "all", all)
 	if !all {
 		return r.Signal(st.Pid, sig)
 	}

@@ -4,11 +4,9 @@
 package caps
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"math/bits"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -187,47 +185,4 @@ func FromSpec(c *spec.Capabilities) (Sets, error) {
 		errs = append(errs, fmt.Errorf("process.capabilities: permitted has capabilities outside the bounding set: %s", strings.Join(extra.Names(), ", ")))
 	}
 	return s, errors.Join(errs...)
-}
-
-// Status is the capability section of /proc/<pid>/status.
-type Status struct {
-	Inheritable, Permitted, Effective, Bounding, Ambient Set
-}
-
-// ParseStatus extracts the Cap* lines from the text of /proc/<pid>/status.
-func ParseStatus(text string) (Status, error) {
-	var st Status
-	fields := map[string]*Set{
-		"CapInh": &st.Inheritable,
-		"CapPrm": &st.Permitted,
-		"CapEff": &st.Effective,
-		"CapBnd": &st.Bounding,
-		"CapAmb": &st.Ambient,
-	}
-	found := map[string]bool{}
-	sc := bufio.NewScanner(strings.NewReader(text))
-	for sc.Scan() {
-		key, val, ok := strings.Cut(sc.Text(), ":")
-		dst, want := fields[key]
-		if !ok || !want {
-			continue
-		}
-		v, err := strconv.ParseUint(strings.TrimSpace(val), 16, 64)
-		if err != nil {
-			return Status{}, fmt.Errorf("parse %s: %w", key, err)
-		}
-		*dst = Set(v)
-		found[key] = true
-	}
-	if len(found) != len(fields) {
-		var missing []string
-		for k := range fields {
-			if !found[k] {
-				missing = append(missing, k)
-			}
-		}
-		sort.Strings(missing)
-		return Status{}, fmt.Errorf("status is missing %s", strings.Join(missing, ", "))
-	}
-	return st, nil
 }

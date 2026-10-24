@@ -94,20 +94,3 @@ func TestFromSpec(t *testing.T) {
 		}
 	}
 }
-
-func TestParseStatus(t *testing.T) {
-	text := "Name:\tsh\nCapInh:\t0000000000000000\nCapPrm:\t00000000a80425fb\nCapEff:\t00000000a80425fb\nCapBnd:\t00000000a80425fb\nCapAmb:\t0000000000000000\nSeccomp:\t2\n"
-	st, err := ParseStatus(text)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if st.Effective.Hex() != "00000000a80425fb" || st.Ambient != 0 {
-		t.Errorf("status = %+v", st)
-	}
-	if _, err := ParseStatus("CapEff:\tzz\n"); err == nil {
-		t.Error("bad hex should fail")
-	}
-	if _, err := ParseStatus("CapEff:\t0\n"); err == nil || !strings.Contains(err.Error(), "CapAmb, CapBnd, CapInh, CapPrm") {
-		t.Errorf("err = %v", err)
-	}
-}

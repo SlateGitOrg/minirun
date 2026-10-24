@@ -38,9 +38,6 @@ func New(fsys FS, root, rel string) (*Manager, error) {
 // Path is the absolute path of the cgroup directory.
 func (m *Manager) Path() string { return filepath.Join(m.root, m.rel) }
 
-// Rel is the cgroup path relative to the hierarchy root.
-func (m *Manager) Rel() string { return m.rel }
-
 func (m *Manager) file(name string) string { return filepath.Join(m.Path(), name) }
 
 // Create makes the cgroup and every missing ancestor, enabling the given
