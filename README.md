@@ -185,7 +185,7 @@ All numbers below are produced by the commands shown, on an Apple M1 Pro
 
 | Metric | Value | Command |
 |---|---|---|
-| Core-logic statement coverage (macOS) | 94.1% | `make cover` |
+| Core-logic statement coverage (macOS) | 94.0% | `make cover` |
 | Core-logic coverage, Linux unit tests | 94.2% (79.8% including the kernel glue that unit tests cannot run) | `make integration` |
 | Integration assertions | 48/48 pass (kernel 7.0.14-linuxkit, aarch64) | `make integration` |
 | Default profile size | 303 rules -> 107 instructions (x86-64), 108 (arm64) | `bin/minirun seccomp --default --arch x86_64` |
