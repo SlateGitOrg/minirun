@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -23,16 +26,62 @@ import (
 
 // LinuxLauncher starts container processes by re-executing the minirun
 // binary as `__init` or `__exec`.
+//
+// The binary is not re-executed from its path on disk but from a sealed
+// in-memory copy (memfd). Between the re-exec and the final execve, the
+// helper process is visible inside the container's PID namespace, and a
+// process in the container could open /proc/<pid>/exe; with the on-disk
+// binary that is the CVE-2019-5736 attack (overwrite the host's runtime
+// binary). A sealed memfd cannot be written, so the attack has nothing to
+// write to.
 type LinuxLauncher struct {
-	// Self is the binary to re-execute; /proc/self/exe by default.
-	Self string
+	once   sync.Once
+	binary *os.File
+	err    error
 }
 
-func (l *LinuxLauncher) self() string {
-	if l.Self != "" {
-		return l.Self
+// sealedSelf returns a write-sealed memfd holding a copy of the running
+// executable, created once per launcher.
+func (l *LinuxLauncher) sealedSelf() (*os.File, error) {
+	l.once.Do(func() { l.binary, l.err = copyToSealedMemfd("/proc/self/exe") })
+	return l.binary, l.err
+}
+
+func copyToSealedMemfd(path string) (*os.File, error) {
+	src, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
-	return "/proc/self/exe"
+	defer func() { _ = src.Close() }()
+	fd, err := unix.MemfdCreate("minirun", unix.MFD_CLOEXEC|unix.MFD_ALLOW_SEALING)
+	if err != nil {
+		return nil, fmt.Errorf("memfd_create: %w", err)
+	}
+	mem := os.NewFile(uintptr(fd), "memfd:minirun")
+	if _, err := io.Copy(mem, src); err != nil {
+		_ = mem.Close()
+		return nil, fmt.Errorf("copy binary to memfd: %w", err)
+	}
+	seals := unix.F_SEAL_SEAL | unix.F_SEAL_SHRINK | unix.F_SEAL_GROW | unix.F_SEAL_WRITE
+	if _, err := unix.FcntlInt(uintptr(fd), unix.F_ADD_SEALS, seals); err != nil {
+		_ = mem.Close()
+		return nil, fmt.Errorf("seal memfd: %w", err)
+	}
+	return mem, nil
+}
+
+// command builds the re-exec command for a helper whose protocol files
+// occupy fds 3..3+nfiles-1; the sealed binary is passed as the next fd and
+// executed through /proc/self/fd, so the child never runs the on-disk file.
+func (l *LinuxLauncher) command(ctx context.Context, sub string, nfiles int) (*exec.Cmd, *os.File, error) {
+	bin, err := l.sealedSelf()
+	if err != nil {
+		return nil, nil, err
+	}
+	cmd := exec.CommandContext(ctx, "/proc/self/fd/"+strconv.Itoa(3+nfiles), sub)
+	cmd.Args[0] = "minirun-" + strings.TrimPrefix(sub, "__")
+	cmd.Env = []string{}
+	return cmd, bin, nil
 }
 
 // NewLauncher returns the platform launcher.
@@ -176,13 +225,14 @@ func idMaps(maps []spec.IDMapping) []syscall.SysProcIDMap {
 // The context is not tied to the process: a container must outlive the CLI
 // invocation that created it.
 func (l *LinuxLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio Stdio) (Child, error) {
+	cmd, bin, err := l.command(context.Background(), "__init", 3)
+	if err != nil {
+		return nil, err
+	}
 	p, err := newPipes()
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.Command(l.self(), "__init")
-	cmd.Args[0] = "minirun-init"
-	cmd.Env = []string{}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdio.In, stdio.Out, stdio.Err
 	attr := &syscall.SysProcAttr{
 		Cloneflags: uintptr(plan.CloneFlags),
@@ -197,7 +247,7 @@ func (l *LinuxLauncher) StartInit(_ context.Context, plan *launch.Plan, stdio St
 		attr.Credential = &syscall.Credential{Uid: 0, Gid: 0, NoSetGroups: true}
 	}
 	cmd.SysProcAttr = attr
-	return startChild(cmd, p, plan)
+	return startChild(cmd, p, plan, bin)
 }
 
 // StartExec implements Launcher. The namespaces other than mount are joined
@@ -235,15 +285,16 @@ func (l *LinuxLauncher) startExecLocked(ctx context.Context, plan *launch.Plan, 
 			return nil, err
 		}
 	}
+	cmd, bin, err := l.command(ctx, "__exec", 4)
+	if err != nil {
+		return nil, err
+	}
 	p, err := newPipes()
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, l.self(), "__exec")
-	cmd.Args[0] = "minirun-exec"
-	cmd.Env = []string{}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdio.In, stdio.Out, stdio.Err
-	return startChild(cmd, p, sandbox.ExecPlan{Process: proc, Seccomp: plan.Seccomp}, mnt)
+	return startChild(cmd, p, sandbox.ExecPlan{Process: proc, Seccomp: plan.Seccomp}, mnt, bin)
 }
 
 func joinNamespace(path string) error {

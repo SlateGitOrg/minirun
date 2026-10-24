@@ -61,7 +61,7 @@ var ErrUnsupported = errors.New("running containers requires Linux")
 var (
 	ErrNotRunning = errors.New("container is not running")
 	ErrRunning    = errors.New("container is running; stop it first or use --force")
-	ErrExecUserNS = errors.New("exec into a container with a user namespace is not supported: Go cannot setns(CLONE_NEWUSER) from a multithreaded process (see docs/SECURITY.md)")
+	ErrExecUserNS = errors.New("exec into a container with a user namespace is not supported: Go cannot setns(CLONE_NEWUSER) from a multithreaded process (see docs/THREAT_MODEL.md)")
 )
 
 // Runtime ties the pieces together.
