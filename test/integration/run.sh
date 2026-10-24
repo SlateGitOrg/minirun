@@ -59,6 +59,7 @@ echo "rootfs: $tarball (sha256 $sha256)"
 
 echo "building minirun for linux/$goarch"
 CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -trimpath -o "$cache/bin/minirun" ./cmd/minirun
+CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -trimpath -o "$cache/bin/vsockprobe" ./test/integration/vsockprobe
 
 # Unit-test binaries for Linux, so the Linux build of every package is
 # tested too (CI runs them natively; this covers machines that are not
@@ -104,6 +105,7 @@ echo "linux unit-test coverage: core logic $(go tool cover -func="$cache/linux-c
 echo "== containers"
 docker run --rm --name "$name" --privileged --cgroupns=private \
 	-v "$PWD/$cache/bin/minirun:/usr/local/bin/minirun:ro" \
+	-v "$PWD/$cache/bin/vsockprobe:/usr/local/bin/vsockprobe:ro" \
 	-v "$PWD/test/integration:/itest:ro" \
 	-v "$PWD/$tarball:/alpine.tar.gz:ro" \
 	"$image" /bin/sh /itest/inside.sh

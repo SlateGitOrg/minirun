@@ -49,6 +49,7 @@ mount -t tmpfs -o mode=0711 tmpfs "$STATE"
 
 mkdir -p "$BASE"
 tar -xzf /alpine.tar.gz -C "$BASE"
+cp /usr/local/bin/vsockprobe "$BASE/usr/local/bin/vsockprobe"
 
 mkbundle() { # name [spec flags] [-- command...]
 	b=/bundles/$1; shift
@@ -127,6 +128,15 @@ expect_contains "seccomp profile allows other calls" "$out" "touched"
 
 mkbundle unshare -- /bin/sh -c 'unshare -U true 2>&1 || echo denied'
 expect_contains "default profile blocks namespace creation" "$($M run --bundle /bundles/unshare --rm t-unshare)" "denied"
+
+# socket(2) truncates its family to an int: the default profile must deny
+# AF_VSOCK whatever the upper 32 bits of the argument hold.
+mkbundle vsock -- /usr/local/bin/vsockprobe
+out=$($M run --bundle /bundles/vsock --rm t-vsock)
+expect_contains "default profile denies AF_VSOCK" "$out" "plain=operation not permitted"
+expect_contains "default profile denies AF_VSOCK with high argument bits set" "$out" "hi=operation not permitted"
+mkbundle vsockctl --no-seccomp -- /usr/local/bin/vsockprobe
+echo "# AF_VSOCK without seccomp (control): $($M run --bundle /bundles/vsockctl --rm t-vsockctl | tr '\n' ' ')"
 
 mkbundle userns --userns -- /bin/sh -c 'id -u; tr -s " " </proc/self/uid_map | sed "s/^ //"'
 expect_eq "user namespace maps root to host 100000" "$($M run --bundle /bundles/userns --rm t-userns)" "$(printf '0\n0 100000 65536')"
