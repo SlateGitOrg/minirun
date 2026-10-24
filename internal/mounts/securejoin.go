@@ -17,9 +17,11 @@ var ErrTooManyLinks = errors.New("too many levels of symbolic links")
 
 // SecureJoin resolves unsafePath as if root were "/", following symlinks but
 // never leaving root: absolute link targets restart at root and ".." stops
-// at root. The result is a host path inside root. Components that do not
-// exist yet are appended lexically, so the result can be used to create a
-// mount point.
+// at root. The result is a host path inside root that is not itself a
+// symlink. Every component is checked with lstat, including those after a
+// component that does not exist yet (a later ".." can lead back into
+// existing directories); missing components are kept as they are, so the
+// result can be used to create a mount point.
 //
 // The caller must still be aware of the usual time-of-check/time-of-use
 // window: a process that can modify the tree concurrently can swap a
@@ -28,7 +30,7 @@ var ErrTooManyLinks = errors.New("too many levels of symbolic links")
 // rootfs.
 func SecureJoin(root, unsafePath string) (string, error) {
 	root = filepath.Clean(root)
-	var resolved []string // components below root, all existing non-symlinks
+	var resolved []string // components below root: non-symlinks, existing or missing
 	pending := splitPath(unsafePath)
 	links := 0
 	for len(pending) > 0 {
@@ -46,20 +48,11 @@ func SecureJoin(root, unsafePath string) (string, error) {
 		candidate := filepath.Join(root, filepath.Join(resolved...), part)
 		info, err := os.Lstat(candidate)
 		if errors.Is(err, fs.ErrNotExist) {
-			// Nothing on disk to follow: keep the rest lexically.
+			// Nothing on disk to follow here. Later components are still
+			// resolved one by one: a later ".." can climb back out of the
+			// missing part into existing directories, where the next name
+			// may be a symlink that must be followed, not appended.
 			resolved = append(resolved, part)
-			for _, rest := range pending {
-				switch rest {
-				case "", ".":
-				case "..":
-					if len(resolved) > 0 {
-						resolved = resolved[:len(resolved)-1]
-					}
-				default:
-					resolved = append(resolved, rest)
-				}
-			}
-			pending = nil
 			continue
 		}
 		if err != nil {
@@ -82,7 +75,14 @@ func SecureJoin(root, unsafePath string) (string, error) {
 		}
 		pending = append(splitPath(target), pending...)
 	}
-	return filepath.Join(root, filepath.Join(resolved...)), nil
+	result := filepath.Join(root, filepath.Join(resolved...))
+	// Every component was checked above; this re-check keeps the promise
+	// that the result is never itself a symlink even if that loop is
+	// changed later.
+	if info, err := os.Lstat(result); err == nil && info.Mode()&fs.ModeSymlink != 0 {
+		return "", fmt.Errorf("resolve %s in %s: result %s is a symlink", unsafePath, root, result)
+	}
+	return result, nil
 }
 
 func splitPath(p string) []string {

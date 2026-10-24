@@ -164,7 +164,11 @@ namespace:
 
 `SecureJoin(root, path)` walks the path one component at a time with
 `lstat`, expanding symlinks itself: absolute targets restart at `root`, `..`
-stops at `root`, at most 255 expansions (ELOOP). Cost O(components +
+stops at `root`, at most 255 expansions (ELOOP). Components after one that
+does not exist are still checked one by one, because a later `..` can lead
+back into existing directories (`proc -> missing/../evil` must follow
+`evil`, not append it as text); the result is never itself a symlink, and
+file mount points are created with `O_NOFOLLOW`. Cost O(components +
 symlink expansions).
 
 Privilege drop (`sandbox/security_linux.go`), on the locked thread:

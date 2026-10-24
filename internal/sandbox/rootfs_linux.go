@@ -149,7 +149,9 @@ func createFile(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create mount point %s: %w", path, err)
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0o644)
+	// O_NOFOLLOW: SecureJoin never returns a symlink, but if the final
+	// component were one, creating through it could touch a host file.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o644)
 	if err != nil {
 		return fmt.Errorf("create mount point %s: %w", path, err)
 	}

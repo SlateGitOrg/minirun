@@ -134,6 +134,11 @@ func TestSecureJoin(t *testing.T) {
 	link("lib/../../../tmp", "mix") // relative chain
 	link("loop2", "loop1")
 	link("loop1", "loop2")
+	// A ".." after a missing component cancels it, so the next name is an
+	// existing entry that must be resolved (here a symlink to an absolute
+	// path that tries to climb out of root), not appended as text.
+	link("missing/../evil", "proc")
+	link("/../../../../../escape-target", "evil")
 	cases := map[string]string{
 		"/":                    root,
 		"/etc/passwd":          filepath.Join(root, "etc/passwd"),
@@ -146,6 +151,11 @@ func TestSecureJoin(t *testing.T) {
 		"/new/../../../escape": filepath.Join(root, "escape"),
 		"/new/./a/./b":         filepath.Join(root, "new/a/b"),
 		"/etc/./../usr//lib/.": filepath.Join(root, "usr/lib"),
+		"/proc":                filepath.Join(root, "escape-target"),
+		"/proc/self/fd":        filepath.Join(root, "escape-target/self/fd"),
+		"/nope/../lib/x":       filepath.Join(root, "usr/lib/x"),
+		"/nope/a/../../up/x":   filepath.Join(root, "etc/x"),
+		"/nope/../evil":        filepath.Join(root, "escape-target"),
 	}
 	for in, want := range cases {
 		got, err := SecureJoin(root, in)
@@ -155,5 +165,19 @@ func TestSecureJoin(t *testing.T) {
 	}
 	if _, err := SecureJoin(root, "/loop1/x"); !errors.Is(err, ErrTooManyLinks) {
 		t.Errorf("loop: %v", err)
+	}
+	// Whatever the input, the result must stay inside root and must not be
+	// a symlink (callers mkdir, create and mount on it as root).
+	for in := range cases {
+		got, err := SecureJoin(root, in)
+		if err != nil {
+			continue
+		}
+		if rel, err := filepath.Rel(root, got); err != nil || strings.HasPrefix(rel, "..") {
+			t.Errorf("SecureJoin(%q) = %q escapes root", in, got)
+		}
+		if info, err := os.Lstat(got); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			t.Errorf("SecureJoin(%q) = %q is a symlink", in, got)
+		}
 	}
 }
