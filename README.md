@@ -150,14 +150,15 @@ linux unit-test coverage: core logic 94.2%, all code incl. kernel glue 79.9%
 ok 1 - container init is pid 1
 ok 3 - uts namespace sets hostname
 ok 6 - network namespace: host interfaces hidden, only lo up
-ok 13 - effective capabilities are the default set
-ok 18 - seccomp profile denies mkdir with the configured errno
-ok 20 - default profile blocks namespace creation
-ok 21 - user namespace maps root to host 100000
-ok 22 - memory limit: OOM kill exits 137
-ok 26 - pids limit: fork fails
-ok 32 - exec joins the pid namespace
-ok 42 - delete -f kills and removes
+ok 7 - cgroup namespace is rooted at the container's cgroup
+ok 15 - effective capabilities are the default set
+ok 20 - seccomp profile denies mkdir with the configured errno
+ok 22 - default profile blocks namespace creation
+ok 23 - user namespace maps root to host 100000
+ok 24 - memory limit: OOM kill exits 137
+ok 28 - pids limit: fork fails
+ok 34 - exec joins the pid namespace
+ok 44 - delete -f kills and removes
 ...
 1..46
 # passed 46, failed 0
