@@ -55,6 +55,12 @@ const (
 	afVsock = 40 // AF_VSOCK: host<->guest sockets, denied as Docker does
 	enosys  = 38 // ENOSYS: makes libc fall back from clone3 to clone
 
+	// int32Mask selects the low 32 bits of an argument. Syscall arguments
+	// declared int or unsigned int are truncated by the kernel, so a deny
+	// test on them must ignore the upper half (an allow test that compares
+	// all 64 bits, like personality's, only fails closed).
+	int32Mask = 0xffffffff
+
 	// cloneNamespaceFlags is CLONE_NEWNS|CLONE_NEWCGROUP|CLONE_NEWUTS|
 	// CLONE_NEWIPC|CLONE_NEWUSER|CLONE_NEWPID|CLONE_NEWNET (0x7e020000):
 	// clone(2) is allowed only when none of them is set, so a container
@@ -72,7 +78,12 @@ func DefaultProfile() *spec.Seccomp {
 		Architectures:   []string{"SCMP_ARCH_X86_64", "SCMP_ARCH_AARCH64"},
 		Syscalls: []spec.Syscall{
 			{Names: strings.Fields(defaultAllowed), Action: "SCMP_ACT_ALLOW"},
-			{Names: []string{"socket"}, Action: "SCMP_ACT_ALLOW", Args: []spec.Arg{{Index: 0, Value: afVsock, Op: "SCMP_CMP_NE"}}},
+			// socket(int family, ...): the kernel reads only the low 32
+			// bits of the family, so the test masks the upper half off.
+			// A plain 64-bit "arg0 != AF_VSOCK" would let 1<<32|AF_VSOCK
+			// through and still create a vsock socket.
+			{Names: []string{"socket"}, Action: "SCMP_ACT_ERRNO", ErrnoRet: &eperm, Args: []spec.Arg{{Index: 0, Value: int32Mask, ValueTwo: afVsock, Op: "SCMP_CMP_MASKED_EQ"}}},
+			{Names: []string{"socket"}, Action: "SCMP_ACT_ALLOW"},
 			{Names: []string{"clone"}, Action: "SCMP_ACT_ALLOW", Args: []spec.Arg{{Index: 0, Value: cloneNamespaceFlags, ValueTwo: 0, Op: "SCMP_CMP_MASKED_EQ"}}},
 			// clone3 passes its flags in memory, which seccomp cannot inspect.
 			{Names: []string{"clone3"}, Action: "SCMP_ACT_ERRNO", ErrnoRet: &nosys},

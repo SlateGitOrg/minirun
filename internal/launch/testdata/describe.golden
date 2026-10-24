@@ -40,6 +40,6 @@ container demo (bundle /bundles/demo)
     permitted   00000000a80425fb
     inheritable 0000000000000000
     ambient     0000000000000000
-    seccomp SCMP_ARCH_X86_64: 302 rules -> 105 BPF instructions over 64 syscall ranges, default SCMP_ACT_ERRNO(1)
+    seccomp SCMP_ARCH_X86_64: 303 rules -> 107 BPF instructions over 64 syscall ranges, default SCMP_ACT_ERRNO(1)
 
 [6] exec /bin/sh -c echo hello (cwd /)

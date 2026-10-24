@@ -26,7 +26,7 @@ the minirun binary itself.
 | UTS, IPC, network namespaces | changing the host's hostname, SysV IPC with the host, host network access | integration: hostname set inside and unchanged outside; only `lo` up |
 | Capability bounding/effective sets (Docker's 14 by default) | `CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_SYS_MODULE`, `CAP_SYS_PTRACE`... | integration: `CapEff`/`CapBnd` = `00000000a80425fb`; `sethostname` fails |
 | `no_new_privs` | regaining privileges via setuid binaries or file capabilities | integration: `NoNewPrivs: 1` |
-| seccomp (default allow-list) | kernel attack surface: `mount`, `unshare`/`setns`, `clone` with namespace flags, `bpf`, `perf_event_open`, `keyctl`, `ptrace`, module loading, `AF_VSOCK` sockets... | unit: compiler == reference semantics (property + fuzz); integration: filter active, configured errno returned, `unshare` denied |
+| seccomp (default allow-list) | kernel attack surface: `mount`, `unshare`/`setns`, `clone` with namespace flags, `bpf`, `perf_event_open`, `keyctl`, `ptrace`, module loading, `AF_VSOCK` sockets (family tested on its low 32 bits, the part the kernel reads)... | unit: compiler == reference semantics (property + fuzz), `socket(1<<32\|AF_VSOCK)` denied; integration: filter active, configured errno returned, `unshare` denied, `AF_VSOCK` denied with and without high argument bits |
 | cgroup v2 memory/pids/cpu limits | memory exhaustion, fork bombs, CPU monopolisation | integration: OOM kill at `memory.max` (exit 137, `oomKilled`), fork fails at `pids.max`, `cpu.max` written |
 | User namespace (opt-in `--userns`) | container root being host root | integration: uid 0 inside maps to host 100000 |
 | Sealed memfd re-exec | overwriting the host minirun binary through `/proc/<helper>/exe` (CVE-2019-5736 class) | by construction; not exercised by a test |
@@ -73,6 +73,18 @@ the minirun binary itself.
 10. **Resource exhaustion of the runtime itself** (huge configs, enormous
     seccomp profiles) is bounded only coarsely: config files are capped at
     4 MiB and filters at the kernel's 4096 instructions.
+11. **seccomp argument tests are 64-bit; `int` arguments are not.** OCI
+    profiles compare whole 64-bit registers, while the kernel truncates
+    arguments declared `int`/`unsigned int` (e.g. `socket`'s family,
+    `personality`) to 32 bits. A deny-style test such as
+    `SCMP_CMP_NE 40` can therefore be bypassed by setting the upper 32
+    bits, a weakness Docker/libseccomp profiles share. The default profile
+    avoids it: `AF_VSOCK` is denied by `SCMP_CMP_MASKED_EQ 0xffffffff == 40`
+    (the earlier `SCMP_CMP_NE` rule let `socket(1<<32|40)` create a vsock
+    socket on a real kernel), `clone`'s namespace check masks the low half
+    (the kernel uses only it), and `personality` is allow-listed by exact
+    64-bit value, which only fails closed. minirun does not rewrite custom
+    profiles: write tests on `int` arguments with a `0xffffffff` mask.
 
 ## Out of scope
 
