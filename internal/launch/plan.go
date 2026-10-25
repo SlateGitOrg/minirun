@@ -17,11 +17,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/caps"
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/mounts"
-	"github.com/archit2501/minirun/internal/seccomp"
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/caps"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/mounts"
+	"github.com/SlateGitOrg/minirun/internal/seccomp"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // Linux clone(2) namespace flags.

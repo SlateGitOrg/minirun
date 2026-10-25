@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/archit2501/minirun/internal/caps"
-	"github.com/archit2501/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/caps"
+	"github.com/SlateGitOrg/minirun/internal/launch"
 )
 
 // child bundles the protocol file descriptors of a sandbox child.

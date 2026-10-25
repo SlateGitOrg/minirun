@@ -87,7 +87,7 @@ sequenceDiagram
   C->>C: drop privileges (section 4)
   C->>K: execve(process.args)
   K-->>P: fd 5 EOF (close-on-exec) = exec succeeded
-  P->>P: status: running; foreground: wait, forward signals, record exit + OOM
+  P->>P: status: running, foreground: wait, forward signals, record exit + OOM
 ```
 
 Design points:

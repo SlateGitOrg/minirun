@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // DefaultRoot is where the cgroup v2 hierarchy is mounted on modern

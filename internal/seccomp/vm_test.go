@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 func ins(op uint16, jt, jf uint8, k uint32) Instruction {

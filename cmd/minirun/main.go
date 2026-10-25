@@ -7,8 +7,8 @@ import (
 	"os"
 	goruntime "runtime"
 
-	"github.com/archit2501/minirun/internal/cli"
-	"github.com/archit2501/minirun/internal/sandbox"
+	"github.com/SlateGitOrg/minirun/internal/cli"
+	"github.com/SlateGitOrg/minirun/internal/sandbox"
 )
 
 // The container init and exec helper are this same binary re-executed with

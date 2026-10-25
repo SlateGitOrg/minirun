@@ -13,8 +13,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/archit2501/minirun/internal/runtime"
-	"github.com/archit2501/minirun/internal/signals"
+	"github.com/SlateGitOrg/minirun/internal/runtime"
+	"github.com/SlateGitOrg/minirun/internal/signals"
 )
 
 // forwardSignals relays the signals a terminal user sends to the foreground

@@ -1,4 +1,4 @@
-module github.com/archit2501/minirun
+module github.com/SlateGitOrg/minirun
 
 go 1.26.0
 

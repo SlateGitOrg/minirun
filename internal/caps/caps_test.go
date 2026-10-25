@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 func TestDefaultCapabilitiesMatchDockerMask(t *testing.T) {

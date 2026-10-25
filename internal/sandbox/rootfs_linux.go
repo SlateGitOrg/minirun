@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/mounts"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/mounts"
 )
 
 func mount(source, target, fstype string, flags uint64, data string) error {

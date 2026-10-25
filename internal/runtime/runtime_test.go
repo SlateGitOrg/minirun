@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/archit2501/minirun/internal/cgroups/fakecg"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/runtime"
-	"github.com/archit2501/minirun/internal/spec"
-	"github.com/archit2501/minirun/internal/state"
+	"github.com/SlateGitOrg/minirun/internal/cgroups/fakecg"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/runtime"
+	"github.com/SlateGitOrg/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/state"
 )
 
 // fakeLauncher stands in for the Linux launcher: it "starts" processes by

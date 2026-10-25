@@ -3,7 +3,7 @@ package seccomp
 import (
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // defaultAllowed is the allow-list of the default profile. It is modelled on

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 func TestParseOptions(t *testing.T) {

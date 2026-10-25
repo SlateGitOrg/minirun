@@ -15,9 +15,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/runtime"
-	"github.com/archit2501/minirun/internal/state"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/runtime"
+	"github.com/SlateGitOrg/minirun/internal/state"
 )
 
 // Version is the minirun version, overridable at link time.

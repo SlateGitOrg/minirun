@@ -8,9 +8,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/archit2501/minirun/internal/caps"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/seccomp"
+	"github.com/SlateGitOrg/minirun/internal/caps"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/seccomp"
 )
 
 // The identity syscalls below are issued with RawSyscall on purpose. Go's

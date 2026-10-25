@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // names lists capabilities by number (include/uapi/linux/capability.h).

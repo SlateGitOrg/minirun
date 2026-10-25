@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/cgroups/fakecg"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/runtime"
-	"github.com/archit2501/minirun/internal/spec"
-	"github.com/archit2501/minirun/internal/state"
+	"github.com/SlateGitOrg/minirun/internal/cgroups/fakecg"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/runtime"
+	"github.com/SlateGitOrg/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/state"
 )
 
 // stubLauncher "runs" containers instantly: the init exits with exitCode.

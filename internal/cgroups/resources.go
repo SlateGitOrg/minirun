@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // Setting is one write to a cgroup interface file.

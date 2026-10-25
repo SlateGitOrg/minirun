@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // mount(2) flags (include/uapi/linux/mount.h). Defined here rather than

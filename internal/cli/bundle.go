@@ -13,11 +13,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/cgroups/fakecg"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/seccomp"
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/cgroups/fakecg"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/seccomp"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 func specVersion() string { return spec.Version }

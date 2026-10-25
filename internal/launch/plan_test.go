@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/seccomp"
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/seccomp"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 var update = os.Getenv("UPDATE_GOLDEN") == "1"

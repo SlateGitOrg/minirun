@@ -6,21 +6,23 @@ dependency (`golang.org/x/sys`). It reads a subset of the OCI runtime-spec
 v2, overlayfs, `pivot_root`, capabilities, seccomp) and manages its lifecycle
 with `run | exec | ps | kill | delete`.
 
-It is a teaching-grade, fully tested implementation of what `runc` does at
-its core, small enough to read in an afternoon. It is **not** a hardened
-production runtime; see [Security caveats](#security-caveats).
+It implements the core of what `runc` does, in a codebase small enough to
+read in an afternoon. It is **not** a hardened production runtime; see
+[Security caveats](#security-caveats).
 
-## Who it is for
+[![CI](https://github.com/SlateGitOrg/minirun/actions/workflows/ci.yml/badge.svg)](https://github.com/SlateGitOrg/minirun/actions/workflows/ci.yml)
 
-- Engineers who want to see exactly which syscalls make a container, in
-  order, with the reasons for that order written down next to the code.
-- People learning seccomp: minirun compiles OCI seccomp profiles to classic
-  BPF itself (no libseccomp), and can disassemble the program and evaluate
-  syscalls against it on any OS.
-- Reviewers who want a container runtime whose isolation claims are checked
-  by an automated suite against a real kernel.
+## Why
 
-## What it does
+A container is not a kernel object; it is a sequence of syscalls whose order
+matters (cgroup join versus `pids.max`, `pivot_root` versus mounts, privilege
+drop versus `execve`). minirun writes that sequence down in one place, with
+the reason for each step next to the code. It compiles OCI seccomp profiles
+to classic BPF itself (no libseccomp), so the filter can be disassembled and
+queried on any OS, and its isolation claims are checked by an automated suite
+against a real kernel.
+
+## Features
 
 | Area | Implementation |
 |---|---|
@@ -66,7 +68,7 @@ runtime's own threads never count against a tight `pids.max`.
 the mount and privilege-drop sequences, the seccomp compiler and the
 complexity of each step.
 
-## Quickstart
+## Quick start
 
 Requirements: Go 1.26+. Running containers needs Linux 5.11+ with cgroup v2,
 overlayfs and root. Everything else (unit tests, demo, `plan`, `seccomp`)
@@ -99,8 +101,7 @@ mainstream distributions.
 
 ## Demo output
 
-Excerpt of `make demo` on macOS (full run in the
-[build report](#benchmarks-and-evaluation); the script is
+Excerpt of `make demo` on macOS (the script is
 [scripts/demo.sh](scripts/demo.sh)):
 
 ```text
@@ -271,8 +272,6 @@ anything:
   namespace must be rooted there), so the Go runtime's few threads count
   against `pids.max` during setup; very small limits can fail to start.
 - Unsupported OCI keys are reported by `validate` and ignored, not enforced.
-- CI is defined in `.github/workflows/ci.yml` but has not run: the
-  repository has not been pushed. The same gates were run locally.
 
 ## Roadmap
 
@@ -284,7 +283,7 @@ anything:
 - Rootless mode (user namespace + delegated cgroup subtree).
 - Device cgroup via an eBPF program.
 
-## Repository layout
+## Project layout
 
 ```text
 cmd/minirun/            entry point; also the re-exec entry for __init / __exec
@@ -305,5 +304,5 @@ scripts/                demo and coverage scripts
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Data sources and their licenses are in
+MIT — see [LICENSE](LICENSE). Third-party data and its licenses are listed in
 [DATA.md](DATA.md).

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/signals"
-	"github.com/archit2501/minirun/internal/state"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/signals"
+	"github.com/SlateGitOrg/minirun/internal/state"
 )
 
 // ExecOptions parameterise Exec.

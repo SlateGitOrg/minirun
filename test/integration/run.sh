@@ -68,7 +68,7 @@ echo "building unit-test binaries for linux/$goarch"
 rm -rf "$cache/tests" "$cache/cover"
 mkdir -p "$cache/tests" "$cache/cover"
 for pkg in $(go list ./internal/...); do
-	rel=${pkg#github.com/archit2501/minirun/}
+	rel=${pkg#github.com/SlateGitOrg/minirun/}
 	if [ -n "$(go list -f '{{.TestGoFiles}}{{.XTestGoFiles}}' "$pkg" | tr -d '[]')" ]; then
 		CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go test -c -cover -coverpkg=./internal/... \
 			-o "$cache/tests/$(echo "$rel" | tr / _).test" "./$rel"

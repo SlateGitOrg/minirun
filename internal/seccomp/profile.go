@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // SECCOMP_RET_* values from include/uapi/linux/seccomp.h.

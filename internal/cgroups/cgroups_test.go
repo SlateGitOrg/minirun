@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/cgroups/fakecg"
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/cgroups/fakecg"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 func i64(v int64) *int64   { return &v }

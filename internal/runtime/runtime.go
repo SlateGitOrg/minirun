@@ -14,10 +14,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/archit2501/minirun/internal/cgroups"
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/spec"
-	"github.com/archit2501/minirun/internal/state"
+	"github.com/SlateGitOrg/minirun/internal/cgroups"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/state"
 )
 
 // Stdio is the standard streams of a container process.

@@ -19,9 +19,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/archit2501/minirun/internal/launch"
-	"github.com/archit2501/minirun/internal/sandbox"
-	"github.com/archit2501/minirun/internal/spec"
+	"github.com/SlateGitOrg/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/sandbox"
+	"github.com/SlateGitOrg/minirun/internal/spec"
 )
 
 // LinuxLauncher starts container processes by re-executing the minirun

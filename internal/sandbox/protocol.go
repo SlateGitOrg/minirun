@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/archit2501/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/launch"
 )
 
 // File descriptor numbers of the protocol.

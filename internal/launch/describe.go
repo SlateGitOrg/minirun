@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/archit2501/minirun/internal/mounts"
+	"github.com/SlateGitOrg/minirun/internal/mounts"
 )
 
 // Describe writes a human-readable account of the plan, in the order the

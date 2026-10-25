@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/archit2501/minirun/internal/launch"
+	"github.com/SlateGitOrg/minirun/internal/launch"
 )
 
 type unsupportedLauncher struct{}
