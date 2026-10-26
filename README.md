@@ -194,7 +194,7 @@ All numbers below are produced by the commands shown, on an Apple M1 Pro
 | Same, arm64 | avg 10.1, max 17 (linear: avg 160.9, max 262) | `bin/minirun seccomp --default --arch aarch64 --cost` |
 | Compile default profile | 127-137 µs/op across runs, 982 allocs | `make bench` |
 | Interpret one syscall (Go VM, not the kernel) | ~27.5 ns/op | `make bench` |
-| Non-test Go code | 6,145 lines excluding comments, blank lines and the generated syscall table | `find . -name '*.go' ! -name '*_test.go' ! -name ztables.go -not -path './.cache/*' \| xargs cat \| grep -Evc '^[[:space:]]*(//\|$)'` |
+| Non-test Go code | 6,189 lines excluding comments, blank lines and the generated syscall table | `find . -name '*.go' ! -name '*_test.go' ! -name ztables.go -not -path './.cache/*' \| xargs cat \| grep -Evc '^[[:space:]]*(//\|$)'` |
 
 The "linear jeq chain" figure is computed, not measured: it is the cost of
 the naive one-comparison-per-syscall layout for the same allow-list
